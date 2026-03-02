@@ -80,6 +80,42 @@ namespace FirewallAnalysis
             }
             return decreasingCount;
         }
+        public void PrintResultInvestigation(WebFirewallAnalysisOutput output)
+        {
+            Console.WriteLine("========== ReconSage Analysis Results ==========\n");
+            Console.WriteLine("\n------------------------------------------\n");
+            // var targets = output.ListOfTarget;
+            foreach(var target in output.ListOfTarget)
+            {
+                Console.WriteLine($"Targets :- {target}");
+            }
+            foreach(var codes in output.DetectedStatusCodes)
+            {
+                Console.WriteLine($"StatusCodes :- {codes}");
+            }
+            foreach(var otherCodes in output.StatusCodeList)
+            {
+                Console.WriteLine($"Other Status Codes :- {otherCodes}");
+            }
+            foreach(var otherLat in output.LatencyList)
+            {
+                Console.WriteLine($"Latency List :- {otherLat}");
+            }
+            foreach(var spikes in output.DetectedStatusCodes)
+            {
+                Console.WriteLine($"Spikes in Latency :- {spikes}");
+            }
+            Console.WriteLine("------- Other details like ---------\n");
+            Console.WriteLine($"Latency Decreasing trend    {output.LatencyDecreasing}");
+            Console.WriteLine($"Latency Increasing trend    {output.LatencyInreasing}");
+            Console.WriteLine($"Suspicous Codes patterns    {output.SusCodePattern}");
+            Console.WriteLine("------ Here are some messages that you might like to know -----------");
+            foreach(var msg in output.Message)
+            {
+                Console.WriteLine($"Message :- {msg}");
+            }
+            Console.WriteLine("For headers go ahead and check out your orignal file......");
+        }
         public async Task<WebFirewallAnalysisOutput> RunAnalysis(string jsonFilePath)
         {
             MainScanOutput jsonOutput = await ReadJson(jsonFilePath);
@@ -105,6 +141,10 @@ namespace FirewallAnalysis
             for(int i = 0; i < StatusCode.Count; i++)
             {
                 if(StatusCode[i] ==  200 && CommonCodes.Contains(StatusCode[i++]))
+                {
+                    susCodePatterns++;
+                }
+                if(StatusCode[i] !=  StatusCode[i++])
                 {
                     susCodePatterns++;
                 }
