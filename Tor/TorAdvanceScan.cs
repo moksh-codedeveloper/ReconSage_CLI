@@ -41,7 +41,7 @@ namespace TorAdvScan
             _client = new HttpClient(handler);
         }
 
-        public async Task Rotate()
+        public async Task RotateAsync()
         {
             using TcpClient torControlClient = new TcpClient();
             await torControlClient.ConnectAsync(Host, Port);
