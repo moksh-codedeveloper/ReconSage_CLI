@@ -5,6 +5,9 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <AssemblyName>ReconSage_Cli</AssemblyName>
+    <RootNamespace>ReconSage_Cli</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
