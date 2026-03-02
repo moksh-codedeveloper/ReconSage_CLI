@@ -4,6 +4,9 @@ using ScanOutputModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ResoParser;
+using FirewallAnalysis;
+using Analysis;
+using FirewallAnalysis.Model;
 
 namespace AppEngine
 {
@@ -46,6 +49,28 @@ namespace AppEngine
                     JsonFilePath = cliEngine.JsonFilePath;
                     WordlistPath = cliEngine.WordlistPath;
                     break;
+                case "--waf-analysis":
+                    {
+                        if (args.Length == 0)
+                        {
+                            Console.WriteLine("Error: Please provide a JSON file path.");
+                            break;
+                        }
+
+                        string wafFilePath = args[1];
+
+                        if (!File.Exists(wafFilePath))
+                        {
+                            Console.WriteLine($"Error: The file '{wafFilePath}' does not exist.");
+                            break;
+                        }
+
+                        IAnalysis<WebFirewallAnalysisOutput> waf = new WafAnalysis();
+                        WebFirewallAnalysisOutput result = await waf.RunAnalysis(wafFilePath);
+                        WafAnalysis waf1 = new WafAnalysis();
+                        waf1.PrintResultInvestigation(result);
+                        return;
+                    }
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
