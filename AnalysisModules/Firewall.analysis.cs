@@ -2,84 +2,12 @@ using System.Text.Json;
 using Analysis;
 using ScanOutputModel;
 using FirewallAnalysis.Model;
+using Wire;
 
 namespace FirewallAnalysis
 {
     public class WafAnalysis : IAnalysis<WebFirewallAnalysisOutput>
     {
-        public async Task<MainScanOutput> ReadJson(string jsonFilePath)
-        {
-            try
-            {
-                string jsonString = await File.ReadAllTextAsync(jsonFilePath);
-                MainScanOutput jsonDeserialised = JsonSerializer.Deserialize<MainScanOutput>(jsonString) ?? new MainScanOutput();
-                return jsonDeserialised;
-            }
-            catch (FileNotFoundException)
-            {
-                Console.WriteLine($"Error: The file '{jsonFilePath}' was not found.");
-                return new MainScanOutput();
-            }
-            catch (JsonException ex)
-            {
-                Console.WriteLine($"Error decoding JSON: {ex.Message}");
-                return new MainScanOutput();
-            }
-        }
-        public List<int> CodesAnalysis(List<int> statusCode)
-        {
-            List<int> CommonCodes = new List<int>()
-            {
-              403, 429, 406, 413, 401, 451, 400, 444, 520
-            };
-            List<int> DetectedCodes = new();
-            foreach (var codes in statusCode)
-            {
-                if (CommonCodes.Contains(codes))
-                {
-                    DetectedCodes.Add(codes);
-                }
-            }
-            return DetectedCodes;
-        }
-        public List<double> SpikedLatency(List<double> latency)
-        {
-            if (latency == null || latency.Count < 10) return new List<double>();
-
-            double average = latency.Average();
-            double sumOfSquare = latency.Select(val => Math.Pow(val - average, 2)).Sum();
-
-            // Use N-1 (latency.Count - 1) for better accuracy on smaller lists (Bessel's correction)
-            double stDeviation = Math.Sqrt(sumOfSquare / (latency.Count - 1));
-            double thresholds = average + (3 * stDeviation);
-
-            return latency.Where(l => l > thresholds).ToList();
-        }
-
-        public int LatencyIncreasing(List<double> latency)
-        {
-            int increasingCount = 0;
-            for(int i = 0; i < latency.Count; i++)
-            {
-                if(latency[i] < latency[i++])
-                {
-                    increasingCount++;
-                }
-            }
-            return increasingCount;
-        }
-        public int LatencyDecreasing(List<double> latency)
-        {
-            int decreasingCount = 0;
-            for(int i = 0; i < latency.Count; i++)
-            {
-                if(latency[i] > latency[i++])
-                {
-                    decreasingCount++;
-                }
-            }
-            return decreasingCount;
-        }
         public void PrintResultInvestigation(WebFirewallAnalysisOutput output)
         {
             Console.WriteLine("========== ReconSage Analysis Results ==========\n");
@@ -106,8 +34,8 @@ namespace FirewallAnalysis
                 Console.WriteLine($"Spikes in Latency :- {spikes}");
             }
             Console.WriteLine("------- Other details like ---------\n");
-            Console.WriteLine($"Latency Decreasing trend    {output.LatencyDecreasing}");
-            Console.WriteLine($"Latency Increasing trend    {output.LatencyInreasing}");
+            Console.WriteLine($"Latency Decreasing trend    {output.isLatencyDecreasing}");
+            Console.WriteLine($"Latency Increasing trend    {output.isLatencyInreasing}");
             Console.WriteLine($"Suspicous Codes patterns    {output.SusCodePattern}");
             Console.WriteLine("------ Here are some messages that you might like to know -----------");
             foreach(var msg in output.Message)
@@ -118,7 +46,8 @@ namespace FirewallAnalysis
         }
         public async Task<WebFirewallAnalysisOutput> RunAnalysis(string jsonFilePath)
         {
-            MainScanOutput jsonOutput = await ReadJson(jsonFilePath);
+            GlobalWires wires = new GlobalWires();
+            MainScanOutput jsonOutput = await wires.ReadJson(jsonFilePath);
             // Values fetching and declaration 
             List<int> CommonCodes = new List<int>()
             {
@@ -131,10 +60,10 @@ namespace FirewallAnalysis
             var HeadersList = jsonOutput.Result.Select(x => x.Headers).ToList();
             var MessageList = jsonOutput.Result.Select(x => x.Message).ToList();
             // values analysis using the functions 
-            List<int> DetectedCodes = CodesAnalysis(StatusCode);
-            List<double> Spike = SpikedLatency(latency:LatencyMS);
-            int IncreasingLatCount = LatencyIncreasing(LatencyMS);
-            int DecreasingLatCount = LatencyDecreasing(LatencyMS);
+            List<int> DetectedCodes = wires.DetectWafStatusCodes(StatusCode);
+            List<double> Spike = wires.SpikedLatency(latency:LatencyMS);
+            bool isIncreasingLats = wires.isIncreasingLatency(LatencyMS);
+            bool isDecreasingLats = wires.isDecreasingLatency(LatencyMS);
         // Check for some sus patterns of codes 
             int susCodePatterns = 0;
         
@@ -151,8 +80,8 @@ namespace FirewallAnalysis
             }
             // Value assigning parts 
             resultWafMode.DetectedStatusCodes = DetectedCodes;
-            resultWafMode.LatencyDecreasing = DecreasingLatCount;
-            resultWafMode.LatencyInreasing = IncreasingLatCount;
+            resultWafMode.isLatencyDecreasing = isDecreasingLats;
+            resultWafMode.isLatencyInreasing = isIncreasingLats;
             resultWafMode.Headers = HeadersList;
             resultWafMode.ListOfTarget = TargetList;
             resultWafMode.SpikedLatency = Spike;
