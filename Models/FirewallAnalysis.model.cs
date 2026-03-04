@@ -9,7 +9,6 @@ namespace FirewallAnalysis.Model
         public bool isLatencyDecreasing { set; get; }
         public List<int> StatusCodeList { set; get; } = new();
         public List<int> DetectedStatusCodes { set; get; } = new();
-        public int SusCodePattern { set; get; }
         public List<Dictionary<string, string>> Headers { set; get; } = new();
         public List<string> Message { set; get; } = new();
     }

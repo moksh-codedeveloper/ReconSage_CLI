@@ -29,14 +29,13 @@ namespace FirewallAnalysis
             {
                 Console.WriteLine($"Latency List :- {otherLat}");
             }
-            foreach(var spikes in output.DetectedStatusCodes)
+            foreach(var codes in output.DetectedStatusCodes)
             {
-                Console.WriteLine($"Spikes in Latency :- {spikes}");
+                Console.WriteLine($"Detected status codes :- {codes}");
             }
             Console.WriteLine("------- Other details like ---------\n");
             Console.WriteLine($"Latency Decreasing trend    {output.isLatencyDecreasing}");
             Console.WriteLine($"Latency Increasing trend    {output.isLatencyInreasing}");
-            Console.WriteLine($"Suspicous Codes patterns    {output.SusCodePattern}");
             Console.WriteLine("------ Here are some messages that you might like to know -----------");
             foreach(var msg in output.Message)
             {
@@ -64,20 +63,6 @@ namespace FirewallAnalysis
             List<double> Spike = wires.SpikedLatency(latency:LatencyMS);
             bool isIncreasingLats = wires.isIncreasingLatency(LatencyMS);
             bool isDecreasingLats = wires.isDecreasingLatency(LatencyMS);
-        // Check for some sus patterns of codes 
-            int susCodePatterns = 0;
-        
-            for(int i = 0; i < StatusCode.Count; i++)
-            {
-                if(StatusCode[i] ==  200 && CommonCodes.Contains(StatusCode[i++]))
-                {
-                    susCodePatterns++;
-                }
-                if(StatusCode[i] !=  StatusCode[i++])
-                {
-                    susCodePatterns++;
-                }
-            }
             // Value assigning parts 
             resultWafMode.DetectedStatusCodes = DetectedCodes;
             resultWafMode.isLatencyDecreasing = isDecreasingLats;
@@ -88,7 +73,6 @@ namespace FirewallAnalysis
             resultWafMode.Message = MessageList;
             resultWafMode.LatencyList = LatencyMS;
             resultWafMode.StatusCodeList = StatusCode;
-            resultWafMode.SusCodePattern = susCodePatterns;
             return resultWafMode;
         }
     }
