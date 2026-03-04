@@ -46,7 +46,8 @@ namespace TorConfigParser
 
             if (!Uri.TryCreate(data["target"], UriKind.Absolute, out Uri? target) || (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps))
                 throw new Exception("Target has broken http url or  it is not Http Url please pass a proper url of https or http");
-            bool valid = IPAddress.TryParse(data["host"], out IPAddress ip);
+            IPAddress? ip = null;
+            bool valid = IPAddress.TryParse(data["host"], out ip);
             if (!valid)
                 throw new Exception("There is something wrong with the ip you passed here in host so yeah please verify");
             // FILE EXTENSION CHECKS

@@ -12,7 +12,7 @@ namespace FirewallAnalysis
             try
             {
                 string jsonString = await File.ReadAllTextAsync(jsonFilePath);
-                MainScanOutput jsonDeserialised = JsonSerializer.Deserialize<MainScanOutput>(jsonString);
+                MainScanOutput jsonDeserialised = JsonSerializer.Deserialize<MainScanOutput>(jsonString) ?? new MainScanOutput();
                 return jsonDeserialised;
             }
             catch (FileNotFoundException)

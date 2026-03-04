@@ -7,6 +7,8 @@ using ResoParser;
 using FirewallAnalysis;
 using Analysis;
 using FirewallAnalysis.Model;
+using RateLimitAnalysis;
+using RateLimitDetector.Model;
 
 namespace AppEngine
 {
@@ -69,6 +71,23 @@ namespace AppEngine
                         WebFirewallAnalysisOutput result = await waf.RunAnalysis(wafFilePath);
                         WafAnalysis waf1 = new WafAnalysis();
                         waf1.PrintResultInvestigation(result);
+                        return;
+                    }
+                case "--rate-limit":
+                    {
+                        if(args.Length == 0)
+                        {
+                            Console.WriteLine("ERROR please provided a file a valid");
+                            break;
+                        }
+                        string rlFilePath = args[1];
+                        if (!File.Exists(rlFilePath))
+                        {
+                            Console.WriteLine($"Error the file path in which file is present does not exist {rlFilePath}");
+                        }
+                        IAnalysis<RateLimitDetectionOutputModel> rateLimit = new RateLimit();
+                        RateLimitDetectionOutputModel rate = await rateLimit.RunAnalysis(rlFilePath);
+                        new RateLimit().PrintResult(rate);
                         return;
                     }
                 default:

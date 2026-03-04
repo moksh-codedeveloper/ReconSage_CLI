@@ -36,7 +36,7 @@ namespace ScanInterface
                 Dictionary<string, string> Header = result.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
                 scanOutputModel.LatencyMS = Latency;
                 scanOutputModel.StatusCode = (int)result.StatusCode;
-                scanOutputModel.Message = Message;
+                scanOutputModel.Message = Message ?? string.Empty;
                 scanOutputModel.Headers = Header;
             }
             catch (Exception ex)
