@@ -73,7 +73,7 @@ namespace TorAdvScan
         {
             return await File.ReadAllLinesAsync(WordlistPath);
         }
-
+    
         public async Task<ScanOutput> SendAsync(string domain)
         {
             ScanOutput scan = new ScanOutput();
@@ -91,7 +91,7 @@ namespace TorAdvScan
                 scan.StatusCode = (int)response.StatusCode;
                 scan.Headers = response.Headers
                                        .ToDictionary(h => h.Key, h => string.Join(",", h.Value));
-                scan.Message = response.ReasonPhrase;
+                scan.Message = response.ReasonPhrase ?? string.Empty;
                 scan.LatencyMS = sw.ElapsedMilliseconds;
             }
             catch (Exception ex)
