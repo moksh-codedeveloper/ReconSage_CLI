@@ -92,5 +92,17 @@ namespace Wire
             }
             return DetectedCodes;
         }
+        public bool IsDetected(int status_codes)
+        {
+            List<int> BlockedCodes = new List<int>()
+            {
+              403, 429, 406, 413, 401, 451, 400, 444, 520
+            };
+            if (BlockedCodes.Contains(status_codes))
+            {
+                return  true;
+            }
+            return false;
+        }
     }
 }

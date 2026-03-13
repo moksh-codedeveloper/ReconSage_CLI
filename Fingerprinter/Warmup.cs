@@ -77,12 +77,10 @@ namespace WarmUpScan
         {
             return wordlistArr.Skip(valueToSkip).Take(sizeOfWordlistToAccess).ToArray();
         }
-        public async Task<MainScanOutput> RunSmartScan(int sizeOfWordlistToAccess, int valueToSkip = 0)
+        public async Task<MainScanOutput> RunSmartScan(string[] wordlistToUse)
         {
             using var semaphore = new SemaphoreSlim(Concurrency);
             object _resultLock = new object();
-            string[] wordlistArr = await new GlobalWires().ProcessWordlist(WordlistPath);
-            string[] wordlistToUse = WordlistBatching(sizeOfWordlistToAccess, wordlistArr, valueToSkip);
             MainScanOutput mainScan = new MainScanOutput();
             var tasks = wordlistToUse.Select(async domain =>
             {
@@ -100,41 +98,29 @@ namespace WarmUpScan
             await Task.WhenAll(tasks);
             return mainScan;
         }
-        public async Task<MainScanOutput> RunSequentialSafeScan(int delayMs = 500)
+        public async Task<MainScanOutput> RunSequentialSafeScan(string[] wordlists, int delayMs = 500)
         {
             MainScanOutput mainScan = new MainScanOutput();
             GlobalWires wires = new GlobalWires();
-            string[] wordlists = await wires.ProcessWordlist(WordlistPath);
 
             Console.WriteLine($"[!] Starting Sequential Scan. Delay: {delayMs}ms");
 
             foreach (var domain in wordlists)
             {
-                // 1. Execute the scan
                 var result = await DomainScan(domain);
-                mainScan.Result.Add(result);
-
-                // 2. Detection Logic: Did the server catch us?
-                if (result.StatusCode == 429 || result.StatusCode == 403)
+                if (wires.IsDetected(result.StatusCode))
                 {
                     Console.WriteLine($"[!] Detection Triggered ({result.StatusCode}) at: {domain}");
                     Console.WriteLine("[!] Pausing scan for 30 seconds to cool down...");
-
-                    // Wait longer if we are detected to let the WAF "forget" us
-                    await Task.Delay(30000);
-
-                    // Optional: You could even break the loop here to save the rest for later
-                    // break; 
+                    await Task.Delay(30000); 
                 }
+                mainScan.Result.Add(result);
 
-                // 3. The "Human" Pause
-                // Randomizing the delay slightly makes it look less like a script
                 int jitter = new Random().Next(-100, 100);
                 await Task.Delay(Math.Max(50, delayMs + jitter));
 
                 Console.WriteLine($"[+] Scanned: {domain} | Status: {result.StatusCode}");
             }
-
             return mainScan;
         }
     }
