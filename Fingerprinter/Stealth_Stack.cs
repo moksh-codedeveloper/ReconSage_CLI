@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using MihaZupan;
 using ScanOutputModel;
 using WarmUpScan;
@@ -38,4 +39,67 @@ namespace StealthStack
         }
     }
     // TODO :- add the tor scanning and integrated the tor rotation interface here and add the actual tor scanner and integrate proxy layer 
+    public class StealthEngine
+    {
+        public readonly string Target;
+        private readonly int Timeout;
+        private readonly string JsonFilePath;
+        private readonly string WordlistPath;
+        private readonly string host;
+        private readonly int port;
+        private readonly string password;
+        private readonly string tor_ip;
+        private readonly int tor_port;
+        private readonly Random _jitter = new();
+        public StealthEngine(string target, int timeout,  string jsonFilePath, string wordlistPath, string _host, int _port, string _password, string _tor_host, int _tor_port)
+        {
+            Target = target;
+            Timeout = timeout;
+            JsonFilePath = jsonFilePath;
+            WordlistPath = wordlistPath;
+            host = _host;
+            port = _port;
+            password = _password;
+            tor_ip = _tor_host;
+            tor_port = _tor_port;
+        }
+
+        public async Task<ScanOutput> NormalTorScan(string url, int minJitterValueMS)
+        {
+            var scan = new ScanOutput{Target = url};
+            using var handler = new SocketsHttpHandler
+            {
+                Proxy = new HttpToSocks5Proxy(tor_ip, tor_port),
+                UseProxy = true,
+            };
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            using var client = new HttpClient(handler);
+            var wires = new GlobalWires();
+            var sw = Stopwatch.StartNew();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
+            try
+            {
+                await Task.Delay(_jitter.Next(minJitterValueMS, minJitterValueMS * 10));
+                var result = await client.SendAsync(request, cts.Token);
+                sw.Stop();
+                if (wires.IsDetected((int)result.StatusCode))
+                {
+                    HeaderDisguise.Apply(request);
+                }
+                scan.StatusCode = (int)result.StatusCode;
+                scan.Headers = result.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
+                scan.LatencyMS = sw.ElapsedMilliseconds;
+                scan.Message = $"{result.Version} | {result.ReasonPhrase}";
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                scan.LatencyMS = sw.ElapsedMilliseconds;
+                scan.Headers = new Dictionary<string, string>();
+                scan.StatusCode = 0;
+                scan.Message = ex.Message;
+            }
+            return scan;
+        }
+    }
 }

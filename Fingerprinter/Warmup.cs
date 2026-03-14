@@ -73,10 +73,7 @@ namespace WarmUpScan
             await Task.WhenAll(tasks);
             return scanOutput;
         }
-        public string[] WordlistBatching(int sizeOfWordlistToAccess, string[] wordlistArr, int valueToSkip)
-        {
-            return wordlistArr.Skip(valueToSkip).Take(sizeOfWordlistToAccess).ToArray();
-        }
+
         public async Task<MainScanOutput> RunSmartScan(string[] wordlistToUse)
         {
             using var semaphore = new SemaphoreSlim(Concurrency);

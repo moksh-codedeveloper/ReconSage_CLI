@@ -100,9 +100,59 @@ namespace Wire
             };
             if (BlockedCodes.Contains(status_codes))
             {
-                return  true;
+                return true;
             }
             return false;
         }
+        public string[] WordlistBatching(int sizeOfWordlistToAccess, string[] wordlistArr, int valueToSkip)
+        {
+            return wordlistArr.Skip(valueToSkip).Take(sizeOfWordlistToAccess).ToArray();
+        }
+        public void ShowProgress(int current, int total, string target)
+        {
+            // \r moves the cursor to the start of the line
+            // The $ allows us to put variables directly into the string
+            Console.Write($"\r[SCANNING] Target: {target,-20} | Progress: ({current}/{total}) [");
+
+            // Optional: Add a small visual bar
+            int barWidth = 20;
+            int progress = (int)((double)current / total * barWidth);
+
+            for (int i = 0; i < barWidth; i++)
+            {
+                if (i < progress) Console.Write("=");
+                else Console.Write(" ");
+            }
+
+            Console.Write("]");
+        }
+        /*
+        how to use the above function easily 
+        int total = wordlist.Count;
+for (int i = 0; i < total; i++)
+{
+    string currentTarget = wordlist[i];
+    
+    // Update the animation
+    ShowProgress(i + 1, total, currentTarget);
+    
+    // Perform the actual stealth scan
+    await engine.ScanTarget(currentTarget);
+}
+
+// Move to a new line when finished
+Console.WriteLine("\n[DONE] Batch Processing Complete.");
+
+Retro style
+public static void TypeWriter(string message)
+{
+    foreach (char c in message)
+    {
+        Console.Write(c);
+        Thread.Sleep(30); // 30ms feels like an old mechanical printer
+    }
+    Console.WriteLine();
+}
+        */
     }
 }
