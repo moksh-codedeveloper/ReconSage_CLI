@@ -27,7 +27,7 @@ namespace AppEngine
                 throw new Exception("Not args have been passed  you should pass a proper args and you should read docs for that...");
             }
             switch (args[0])
-            {
+            { // --tor-normal-scan, --tor-ttls-scan change some parts of the function and add the warmup scan classes in here and remove the old functions and classes from here and also from the projects and also add the warmup related scan here  
                 case "--config-file":
                     string filePath = args[1];
                     if (!filePath.EndsWith(".rso", StringComparison.OrdinalIgnoreCase))

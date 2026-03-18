@@ -11,6 +11,8 @@ namespace RfoModel
         public int Timeout{set;get;}
         public string Password{set;get;} = string.Empty; 
         public string WordlistPath{set;get;} = string.Empty;
-        public IPAddress host{set;get;}
+        public string host{set;get;} = string.Empty;
+        public string tor_ip{set;get;} = string.Empty;
+        public int tor_port{set;get;}
     }
 }

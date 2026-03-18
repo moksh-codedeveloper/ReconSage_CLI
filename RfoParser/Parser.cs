@@ -30,7 +30,7 @@ namespace TorConfigParser
                     data[parts[0].Trim()] = parts[1].Trim();
                 }
             }
-            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path" };
+            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path" , "tor_ip", "tor_port"};
             foreach (var keys in requiredData)
                 if (!data.ContainsKey(keys))
                     throw new Exception("you it seems like you have passed the wrong file which was not supposed to be passed here please pass config.rfo");
@@ -46,10 +46,18 @@ namespace TorConfigParser
 
             if (!Uri.TryCreate(data["target"], UriKind.Absolute, out Uri? target) || (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps))
                 throw new Exception("Target has broken http url or  it is not Http Url please pass a proper url of https or http");
+            
             IPAddress? ip = null;
             bool valid = IPAddress.TryParse(data["host"], out ip);
             if (!valid)
                 throw new Exception("There is something wrong with the ip you passed here in host so yeah please verify");
+            
+            if(!int.TryParse(data["tor_port"], out int _tor_port))
+                throw new Exception("You passed  tor port value not in number please pass it  in number not in anyother data types");
+            bool validTorIP = IPAddress.TryParse(data["tor_ip"], out IPAddress tor_ip);
+            if (!validTorIP)
+                throw new Exception("There is something wrong with the ip you passed here in top_ip so yeah please verify");
+
             // FILE EXTENSION CHECKS
             if (!data["wordlist_path"].EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Wordlist must be .txt file.");
@@ -57,6 +65,7 @@ namespace TorConfigParser
             if (!data["json_file_path"].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Output file must be .json.");
             return data;
+        
         }
         public RfoParsedModel DictToObject()
         {
@@ -67,8 +76,10 @@ namespace TorConfigParser
             parsedModel.JsonFilePath = parsedData["json_file_path"];
             parsedModel.WordlistPath = parsedData["wordlist_path"];
             parsedModel.Port = int.Parse(parsedData["port"]);
-            parsedModel.host = IPAddress.Parse(parsedData["host"]);
+            parsedModel.host = parsedData["host"];
             parsedModel.Password = parsedData["password"];
+            parsedModel.tor_ip = parsedData["tor_ip"];
+            parsedModel.tor_port = int.Parse(parsedData["tor_port"]);
             return parsedModel;
         }
     }

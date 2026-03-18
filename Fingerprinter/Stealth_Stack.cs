@@ -1,12 +1,10 @@
 using System.Diagnostics;
-using System.Net;
 using System.Net.Security;
 using MihaZupan;
 using ScanOutputModel;
 using Wire;
-using TorRotate;
 using System.Security.Cryptography.X509Certificates;
-using System.Runtime.CompilerServices;
+
 namespace StealthStack
 {
     public static class HeaderDisguise
