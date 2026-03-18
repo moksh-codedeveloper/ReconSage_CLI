@@ -15,17 +15,39 @@ namespace ScanOutputModel
     }
     public class TlsScanResult
     {
+        // Connection Metadata
         public string Target { get; set; } = string.Empty;
         public int StatusCode { get; set; }
         public double LatencyMS { get; set; }
-        public string TlsVersion { get; set; } = string.Empty;
-        public string CipherSuite{set;get;} = string.Empty;
-        public string Protocol { get; set; } = string.Empty;
-        public string Message{set;get;} = string.Empty;
+        public string Message { get; set; } = string.Empty;
+
+        // Modern TLS Data
+        public string TlsVersion { get; set; } = string.Empty;   // e.g., "Tls13"
+        public string CipherSuite { get; set; } = string.Empty; // e.g., "TlsAes256GcmSha384"
+        public string Protocol { get; set; } = string.Empty;    // e.g., "Http/1.1" or "H2"
+
+        // --- Modern Certificate Extraction ---
+
+        public string CertSubject { get; set; } = string.Empty;      // Main entity
+        public string CertIssuer { get; set; } = string.Empty;       // Who signed it (CA)
+        public string CertThumbprint { get; set; } = string.Empty;   // Unique SHA1 fingerprint
+        public string CertSerialNumber { get; set; } = string.Empty; // CA serial number
+        public DateTime? CertNotBefore { get; set; }                 // Activation date
+        public DateTime? CertNotAfter { get; set; }                  // Expiration date
+
+        // Crucial for Subdomain Discovery
+        public List<string> SubjectAlternativeNames { get; set; } = new();
+
+        // The "Proof": Full cert encoded in Base64
+        public string RawCertificateBase64 { get; set; } = string.Empty;
+
+        // Security Analysis Flags
+        public bool IsExpired => CertNotAfter.HasValue && DateTime.Now > CertNotAfter;
+        public bool IsWeakProtocol => TlsVersion == "Tls10" || TlsVersion == "Tls11";
     }
 
     public class MainTorScan
     {
-        public  List<TlsScanResult> Results{set;get;} = new();
+        public List<TlsScanResult> Results { set; get; } = new();
     }
 }
