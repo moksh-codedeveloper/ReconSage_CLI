@@ -4,6 +4,8 @@ using Wire;
 
 namespace WarmUpScan
 {
+    // TODO 1 : Remove all the wordlists in-function processing in-fact take the wordlists from the function as the arguements 
+    // TODO 2 : Clean up the old scanner file and replace it with this one 
     public class Scan
     {
         private readonly string Target;

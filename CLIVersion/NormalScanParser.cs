@@ -1,11 +1,12 @@
+using IParser;
 using NormalScanCliModel;
 namespace ScanModels.CLIVersion
 {
-    public class CLIMainEngine
+    public class CLIMainEngine:ICLIParser<NormalScanCliParserModel>
     {
         public NormalScanCliParserModel ArgsProcess(string[] args)
         {
-            var options = new NormalScanCliParserModel();
+            NormalScanCliParserModel options = new NormalScanCliParserModel();
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])

@@ -9,6 +9,8 @@ using Analysis;
 using FirewallAnalysis.Model;
 using RateLimitAnalysis;
 using RateLimitDetector.Model;
+using IParser;
+using NormalScanCliModel;
 
 namespace AppEngine
 {
@@ -19,7 +21,11 @@ namespace AppEngine
         public int Timeout { set; get; }
         public string JsonFilePath { set; get; } = string.Empty;
         public string WordlistPath { set; get; } = string.Empty;
-
+        public string Host{set;get;} = string.Empty;
+        public  int Port{set;get;}
+        public string Password{set;get;} = string.Empty;
+        public  string Tor_IP{set;get;} = string.Empty;
+        public int Tor_Port{set;get;}
         public async Task RunScan(string[] args)
         {
             if (args.Length <= 1)
@@ -28,29 +34,6 @@ namespace AppEngine
             }
             switch (args[0])
             { // --tor-normal-scan, --tor-ttls-scan change some parts of the function and add the warmup scan classes in here and remove the old functions and classes from here and also from the projects and also add the warmup related scan here  
-                case "--config-file":
-                    string filePath = args[1];
-                    if (!filePath.EndsWith(".rso", StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new Exception("The file you passed is not acceptable please use the rso not any other one");
-                    }
-                    Parser parser = new Parser(filePath);
-                    Dictionary<string, string> data = parser.Parse();
-                    var parserToDict = parser.ParseDictToObject(data);
-                    Target = parserToDict.Target;
-                    Concurrency = parserToDict.Concurrency;
-                    Timeout = parserToDict.Timeout;
-                    JsonFilePath = parserToDict.JsonFilePath;
-                    WordlistPath = parserToDict.WordlistPath;
-                    break;
-                case "--args":
-                    var cliEngine = new CLIMainEngine().ProcessCLiArgs(args);
-                    Target = cliEngine.Target;
-                    Concurrency = cliEngine.Concurrency;
-                    Timeout = cliEngine.Timeout;
-                    JsonFilePath = cliEngine.JsonFilePath;
-                    WordlistPath = cliEngine.WordlistPath;
-                    break;
                 case "--waf-analysis":
                     {
                         if (args.Length == 0)
@@ -90,14 +73,19 @@ namespace AppEngine
                         new RateLimit().PrintResult(rate);
                         return;
                     }
+                case "--normal-scan":
+                    ICLIParser<NormalScanCliParserModel> parser = new CLIMainEngine();
+                    NormalScanCliParserModel cliParserModel = parser.ArgsProcess(args);
+
+                    break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
-            Scanner scanner = new Scanner(Target, Concurrency, Timeout, WordlistPath);
-            MainScanOutput mainScan = await scanner.ExecuteScan();
-            PrintToConsole(mainScan);
-            await WriteToJsonAsync(mainScan, JsonFilePath);
         }
+        
+        // Writing to Json and Printing the output section for normal scan 
+        // TODO 1: Convert the WriteToJsonAsync function to accept the any models and write json for any model
+        // TODO 2 : Write down code of 4 scanning function :- 1. All Normal Scans and all the warmup scans functions class from the warmup scan 2. Tor Normal scan 3. TorTlsScan 4. add batch processing and a condition of break when the scans goes wrong
         public async Task WriteToJsonAsync(MainScanOutput mainOutput, string filePath)
         {
             var options = new JsonSerializerOptions

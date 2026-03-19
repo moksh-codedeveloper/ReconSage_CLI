@@ -2,9 +2,9 @@ using System.Net;
 using IParser;
 using TorCliModel;
 
-namespace TcpCliWrapper
+namespace TorCliWrapper
 {
-    public class TcpCli : ICLIParser<TorCliParserModel>
+    public class TorCli : ICLIParser<TorCliParserModel>
     {
         public TorCliParserModel ArgsProcess(string[] args)
         {
