@@ -1,18 +1,11 @@
-using System;
-using System.Collections.Generic;
-
+using NormalScanCliModel;
 namespace ScanModels.CLIVersion
 {
     public class CLIMainEngine
     {
-        public string Target { set; get; } = string.Empty;
-        public int Concurrency { set; get; }
-        public int Timeout { set; get; }
-        public string JsonFilePath { set; get; } = string.Empty;
-        public string  WordlistPath{set; get;} = string.Empty;
-        public CLIMainEngine ProcessCLiArgs(string[] args)
+        public NormalScanCliParserModel ArgsProcess(string[] args)
         {
-            CLIMainEngine options = new CLIMainEngine();
+            var options = new NormalScanCliParserModel();
             for (int i = 0; i < args.Length; i++)
             {
                 switch (args[i])
