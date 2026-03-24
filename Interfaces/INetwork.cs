@@ -6,4 +6,8 @@ namespace Interface.Network
     {
         Task<ScanOutput> SendAsync(string Domain);
     }
+    public interface ITlsScan
+    {
+        Task<TlsScanResult> TlsScan(string Domain);
+    }
 }

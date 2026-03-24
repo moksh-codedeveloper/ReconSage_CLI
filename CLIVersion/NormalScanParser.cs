@@ -39,6 +39,16 @@ namespace ScanModels.CLIVersion
                             throw new Exception("The file should be text strictly not the  other  files");
                         options.WordlistPath = wordlistFilePath;
                         break;
+                    case "--delay":
+                        if(!int.TryParse(args[i+1], out int delay))
+                        {
+                            throw new Exception("You passed a wrong value here please correct it and make it int not any other value");
+                        }
+                        options.delay = delay;
+                        break;
+                    default:
+                        Console.WriteLine("[+]This is the error behind everthing which has been failed :- What you are passing makes no sense here so please pass something understandable");
+                        break;
                 }
             }
             return options;

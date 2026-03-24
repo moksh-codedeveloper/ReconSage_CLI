@@ -1,4 +1,3 @@
-using ScannerCore;
 using ScanModels.CLIVersion;
 using ScanOutputModel;
 using System.Text.Json;
@@ -11,21 +10,24 @@ using RateLimitAnalysis;
 using RateLimitDetector.Model;
 using IParser;
 using NormalScanCliModel;
+using Wire;
+using WarmUpScan;
+using System.Security;
+using StealthStack;
+using System.Security.Cryptography.X509Certificates;
 
 namespace AppEngine
 {
     public class App
     {
-        public string Target { set; get; } = string.Empty;
-        public int Concurrency { set; get; }
-        public int Timeout { set; get; }
-        public string JsonFilePath { set; get; } = string.Empty;
-        public string WordlistPath { set; get; } = string.Empty;
-        public string Host{set;get;} = string.Empty;
-        public  int Port{set;get;}
-        public string Password{set;get;} = string.Empty;
-        public  string Tor_IP{set;get;} = string.Empty;
-        public int Tor_Port{set;get;}
+        private string Target = string.Empty;
+        private int Concurrency;
+        private int Timeout; 
+        private int TorPort;
+        private string TorIP = string.Empty;
+        private string Host = string.Empty;
+        private string WordlistPath = string.Empty;
+        private string JsonFilePath = string.Empty;
         public async Task RunScan(string[] args)
         {
             if (args.Length <= 1)
@@ -33,7 +35,7 @@ namespace AppEngine
                 throw new Exception("Not args have been passed  you should pass a proper args and you should read docs for that...");
             }
             switch (args[0])
-            { // --tor-normal-scan, --tor-ttls-scan change some parts of the function and add the warmup scan classes in here and remove the old functions and classes from here and also from the projects and also add the warmup related scan here  
+            {  
                 case "--waf-analysis":
                     {
                         if (args.Length == 0)
@@ -58,7 +60,7 @@ namespace AppEngine
                     }
                 case "--rate-limit":
                     {
-                        if(args.Length == 0)
+                        if (args.Length == 0)
                         {
                             Console.WriteLine("ERROR please provided a file a valid");
                             break;
@@ -73,20 +75,32 @@ namespace AppEngine
                         new RateLimit().PrintResult(rate);
                         return;
                     }
-                case "--normal-scan":
+                case "--brute-force":
                     ICLIParser<NormalScanCliParserModel> parser = new CLIMainEngine();
                     NormalScanCliParserModel cliParserModel = parser.ArgsProcess(args);
-
+                    Target = cliParserModel.Target;
+                    Concurrency = cliParserModel.Concurrency;
+                    Timeout = cliParserModel.Timeout;
+                    WordlistPath = cliParserModel.WordlistPath;
+                    JsonFilePath = cliParserModel.JsonFilePath;
+                    await RunBruteScan();
+                    break;
+                case "--sequential-scan":
+                    ICLIParser<NormalScanCliParserModel> parser1 = new CLIMainEngine();
+                    NormalScanCliParserModel parserModel = parser1.ArgsProcess(args);
+                    Target = parserModel.Target;
+                    Timeout = parserModel.Timeout;
+                    Concurrency = parserModel.Concurrency;
+                    JsonFilePath = parserModel.JsonFilePath;
+                    WordlistPath = parserModel.WordlistPath;
+                    int Delay = parserModel.delay;
+                    await RunSequentialScan(Delay);
                     break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
         }
-        
-        // Writing to Json and Printing the output section for normal scan 
-        // TODO 1: Convert the WriteToJsonAsync function to accept the any models and write json for any model
-        // TODO 2 : Write down code of 4 scanning function :- 1. All Normal Scans and all the warmup scans functions class from the warmup scan 2. Tor Normal scan 3. TorTlsScan 4. add batch processing and a condition of break when the scans goes wrong
-        public async Task WriteToJsonAsync(MainScanOutput mainOutput, string filePath)
+        public async Task WriteToJsonAsync<T>(T data, string filePath)
         {
             var options = new JsonSerializerOptions
             {
@@ -94,11 +108,25 @@ namespace AppEngine
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
             };
 
-            var json = JsonSerializer.Serialize(mainOutput, options);
+            // Handle duplicate file names
+            string directory = Path.GetDirectoryName(filePath);
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            string extension = Path.GetExtension(filePath);
 
-            await File.WriteAllTextAsync(filePath, json);
+            string newFilePath = filePath;
+            int count = 1;
 
-            Console.WriteLine($"JSON output written to: {filePath}");
+            while (File.Exists(newFilePath))
+            {
+                newFilePath = Path.Combine(directory, $"{fileName}({count}){extension}");
+                count++;
+            }
+
+            var json = JsonSerializer.Serialize(data, options);
+
+            await File.WriteAllTextAsync(newFilePath, json);
+
+            Console.WriteLine($"JSON output written to: {newFilePath}");
         }
         public void PrintToConsole(MainScanOutput mainOutput)
         {
@@ -122,6 +150,23 @@ namespace AppEngine
                 }
             }
             Console.WriteLine("\n============================================");
+        }
+        public async Task RunBruteScan()
+        {
+            GlobalWires wires = new GlobalWires();
+            string[] wordlists = await wires.ProcessWordlist(WordlistPath);
+            var scan = new Scan(Target, Concurrency, Timeout);
+            var result = await scan.RunBruteFastScan(wordlists);
+            await WriteToJsonAsync(result, JsonFilePath);
+        }
+        public async Task RunSequentialScan(int Delay)
+        {
+            var scan = new Scan(Target, Concurrency, Timeout);
+            var wires = new GlobalWires();
+            var wordlists = await  wires.ProcessWordlist(WordlistPath);
+            var result = await scan.RunSequentialSafeScan(wordlists, Delay);
+            await WriteToJsonAsync(result, JsonFilePath);
+            PrintToConsole(result);
         }
     }
 }

@@ -11,14 +11,11 @@ namespace WarmUpScan
         private readonly string Target;
         private readonly int Timeout;
         private readonly int Concurrency;
-
-        private readonly string WordlistPath;
         private readonly HttpClient _client;
-        public Scan(string target, int timeout, int concurrency, string wordlistPath)
+        public Scan(string target, int timeout, int concurrency)
         {
             Target = target;
             Timeout = timeout;
-            WordlistPath = wordlistPath;
             Concurrency = concurrency;
             _client = new HttpClient();
         } 
@@ -49,13 +46,11 @@ namespace WarmUpScan
             }
             return scan;
         }
-        public async Task<MainScanOutput> RunBruteFastScan()
+        public async Task<MainScanOutput> RunBruteFastScan(string[] wordlists)
         {
             object _resultLock = new object();
             MainScanOutput scanOutput = new MainScanOutput();
             using var semaphore = new SemaphoreSlim(Concurrency);
-            GlobalWires wires = new GlobalWires();
-            string[] wordlists = await wires.ProcessWordlist(WordlistPath);
             var tasks = wordlists.Select(async domain =>
             {
                 await semaphore.WaitAsync();
@@ -75,37 +70,14 @@ namespace WarmUpScan
             await Task.WhenAll(tasks);
             return scanOutput;
         }
-
-        public async Task<MainScanOutput> RunSmartScan(string[] wordlistToUse)
-        {
-            using var semaphore = new SemaphoreSlim(Concurrency);
-            object _resultLock = new object();
-            MainScanOutput mainScan = new MainScanOutput();
-            var tasks = wordlistToUse.Select(async domain =>
-            {
-                await semaphore.WaitAsync();
-                try
-                {
-                    var result = await DomainScan(domain);
-                    lock (_resultLock) { mainScan.Result.Add(result); }
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
-            await Task.WhenAll(tasks);
-            return mainScan;
-        }
         public async Task<MainScanOutput> RunSequentialSafeScan(string[] wordlists, int delayMs = 500)
         {
             MainScanOutput mainScan = new MainScanOutput();
             GlobalWires wires = new GlobalWires();
-
             Console.WriteLine($"[!] Starting Sequential Scan. Delay: {delayMs}ms");
-
             foreach (var domain in wordlists)
             {
+                await  Task.Delay(delayMs);
                 var result = await DomainScan(domain);
                 if (wires.IsDetected(result.StatusCode))
                 {

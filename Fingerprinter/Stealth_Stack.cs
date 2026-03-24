@@ -41,7 +41,6 @@ namespace StealthStack
     {
         public readonly string Target;
         private readonly int Timeout;
-        private readonly string JsonFilePath;
         private readonly string host;
         private readonly int port;
         private readonly string password;
@@ -49,11 +48,10 @@ namespace StealthStack
         private readonly int tor_port;
         private readonly Random _jitter = new();
         private readonly int minJitterValue;
-        public StealthEngine(string target, int timeout, string jsonFilePath, string _host, int _port, string _password, string _tor_host, int _tor_port, int MinJitterValue)
+        public StealthEngine(string target, int timeout, string _host, int _port, string _password, string _tor_host, int _tor_port, int MinJitterValue)
         {
             Target = target;
             Timeout = timeout;
-            JsonFilePath = jsonFilePath;
             host = _host;
             port = _port;
             password = _password;
