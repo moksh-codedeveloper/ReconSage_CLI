@@ -1,12 +1,12 @@
 using System.Diagnostics;
-using System.Linq.Expressions;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Interface.Network;
+using ITor;
 using MihaZupan;
 using ScanOutputModel;
 using StealthStack;
-using WarmUpScan;
+using TorRotator;
 using Wire;
 
 namespace NormalTorScan
@@ -118,7 +118,43 @@ namespace NormalTorScan
                     }
                 }
             };
+            var targetDomain = Target + Domain;
             var client = new HttpClient(handler);
+            var request = new HttpRequestMessage(HttpMethod.Get, targetDomain);
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
+            var sw = new Stopwatch();
+            var wires = new GlobalWires();
+            ITorController torController = new TorRotate(host:Host, password:Password, port:CPPort);
+            try
+            {
+                sw.Start();
+                var result = await client.SendAsync(request);
+                sw.Stop();
+                if (wires.IsDetected((int)result.StatusCode))
+                {
+                    HeaderDisguise.Apply(request);
+                    await torController.RotateAsync(cts.Token);
+                    await Task.Delay(6000);
+                }
+                tlsScan.Target = targetDomain;
+                tlsScan.StatusCode = (int)result.StatusCode;
+                tlsScan.Message = result.ReasonPhrase ?? string.Empty;
+                tlsScan.LatencyMS = sw.ElapsedMilliseconds;
+            } catch(HttpRequestException ex)
+            {
+                tlsScan.Message = ex.Message;
+                tlsScan.Target = targetDomain;
+                tlsScan.LatencyMS = sw.ElapsedMilliseconds;
+            } catch(Exception ex)
+            {
+                tlsScan.Message = ex.Message;
+                tlsScan.Target = targetDomain;
+                tlsScan.LatencyMS = sw.ElapsedMilliseconds;
+            }
+            finally
+            {
+                if(sw.IsRunning) sw.Stop();
+            }
             return tlsScan;
         }
     }

@@ -2,12 +2,12 @@ using System.Net;
 using System.Net.Sockets;
 using ITor;
 
-namespace TorRotate
+namespace TorRotator
 {
     public sealed class TorRotate : ITorController, IDisposable
     {
         private readonly string _password;
-        private readonly IPAddress _host;
+        private readonly string _host;
         private readonly int _port;
 
         private readonly SemaphoreSlim _rotateLock = new(1, 1);
@@ -15,10 +15,10 @@ namespace TorRotate
 
         private static readonly TimeSpan RotationCooldown = TimeSpan.FromSeconds(10);
 
-        public TorRotate(string password, IPAddress host, int port)
+        public TorRotate(string password, string host, int port)
         {
             _password = password ?? throw new ArgumentNullException(nameof(password));
-            _host = host ?? throw new ArgumentNullException(nameof(host));
+            _host = host;
             _port = port;
         }
 

@@ -40,10 +40,6 @@ namespace ScanOutputModel
 
         // The "Proof": Full cert encoded in Base64
         public string RawCertificateBase64 { get; set; } = string.Empty;
-
-        // Security Analysis Flags
-        public bool IsExpired => CertNotAfter.HasValue && DateTime.Now > CertNotAfter;
-        public bool IsWeakProtocol => TlsVersion == "Tls10" || TlsVersion == "Tls11";
     }
 
     public class MainTorScan
