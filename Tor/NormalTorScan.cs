@@ -1,11 +1,17 @@
 using System.Diagnostics;
+using System.Linq.Expressions;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using Interface.Network;
 using MihaZupan;
 using ScanOutputModel;
+using StealthStack;
+using WarmUpScan;
+using Wire;
 
 namespace NormalTorScan
 {
-    public class TorScan : INetwork
+    public class TorScan : INetwork, ITlsScan
     {
         private string Target = string.Empty;
         private int Timeout;
@@ -37,22 +43,32 @@ namespace NormalTorScan
             var targetedDomain = Target + Domain;
             var request = new HttpRequestMessage(HttpMethod.Get, targetedDomain);
             var sw = new Stopwatch();
+            var wires = new GlobalWires();
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
+            Random  random = new();
+            int Delay = 1000;
+            var _jitterValue = random.Next(Delay, Delay * 20);
             try
             {
                 sw.Start();
                 var result = await client.SendAsync(request, cts.Token);
                 sw.Stop();
+                if (wires.IsDetected((int)result.StatusCode))
+                {
+                    HeaderDisguise.Apply(request);
+                    await Task.Delay(_jitterValue);
+                }
                 scan.Target = targetedDomain;
                 scan.StatusCode = (int)result.StatusCode;
                 scan.Headers = result.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
                 scan.LatencyMS = sw.ElapsedMilliseconds;
-            }catch(HttpRequestException ex)
+            }
+            catch (HttpRequestException ex)
             {
                 scan.Message = ex.Message;
                 scan.LatencyMS = sw.ElapsedMilliseconds;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 scan.Message = ex.Message;
                 scan.LatencyMS = sw.ElapsedMilliseconds;
@@ -62,6 +78,48 @@ namespace NormalTorScan
                 if (sw.IsRunning) sw.Stop();
             }
             return scan;
+        }
+        public async Task<TlsScanResult> TlsScan(string Domain)
+        {
+            var tlsScan = new TlsScanResult();
+            var handler = new SocketsHttpHandler
+            {
+                Proxy = new HttpToSocks5Proxy(TorIP, TorPort),
+                UseProxy = true,
+                SslOptions = new SslClientAuthenticationOptions
+                {
+                    RemoteCertificateValidationCallback = (sender, cert, chain, errors) =>
+                    {
+                        if(sender is SslStream sslStream)
+                        {
+                            tlsScan.TlsVersion = sslStream.SslProtocol.ToString();
+                            tlsScan.CipherSuite = sslStream.NegotiatedCipherSuite.ToString();
+                        }
+                        if (cert is X509Certificate2 cert2)
+                        {
+                            tlsScan.CertSubject = cert2.Subject;
+                            tlsScan.CertIssuer = cert2.Issuer;
+                            tlsScan.CertThumbprint = cert2.Thumbprint;
+                            tlsScan.CertSerialNumber = cert2.SerialNumber;
+                            tlsScan.CertNotBefore = cert2.NotBefore;
+                            tlsScan.CertNotAfter = cert2.NotAfter;
+                            tlsScan.RawCertificateBase64 = Convert.ToBase64String(cert2.RawData);
+
+                            var sanExtension = cert2.Extensions["2.5.29.17"];
+                            if (sanExtension != null)
+                            {
+                                tlsScan.SubjectAlternativeNames = sanExtension.Format(false)
+                                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                    .Select(s => s.Trim().Replace("DNS Name=", ""))
+                                    .ToList();
+                            }
+                        }
+                        return true;
+                    }
+                }
+            };
+            var client = new HttpClient(handler);
+            return tlsScan;
         }
     }
 }
