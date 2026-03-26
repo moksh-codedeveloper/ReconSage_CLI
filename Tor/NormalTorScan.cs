@@ -124,7 +124,6 @@ namespace NormalTorScan
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
             var sw = new Stopwatch();
             var wires = new GlobalWires();
-            ITorController torController = new TorRotate(host:Host, password:Password, port:CPPort);
             try
             {
                 sw.Start();
@@ -133,7 +132,6 @@ namespace NormalTorScan
                 if (wires.IsDetected((int)result.StatusCode))
                 {
                     HeaderDisguise.Apply(request);
-                    await torController.RotateAsync(cts.Token);
                     await Task.Delay(6000);
                 }
                 tlsScan.Target = targetDomain;
