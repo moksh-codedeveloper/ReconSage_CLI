@@ -42,7 +42,7 @@ namespace TorConfigParser
             if (!int.TryParse(data["timeout"], out int timeout) || timeout <= 0)
                 throw new Exception("The provided timeout value is not acceptable here so yeah please pass something legit");
 
-            if (data["password"] != "" || string.IsNullOrWhiteSpace(data["password"]) || data["password"].Length == 0)
+            if (data["password"] == "" || string.IsNullOrWhiteSpace(data["password"]) || data["password"].Length == 0)
                 throw new Exception("Please pass a valid password");
 
             if (!Uri.TryCreate(data["target"], UriKind.Absolute, out Uri? target) || (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps))
