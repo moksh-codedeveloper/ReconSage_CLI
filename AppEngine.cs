@@ -133,7 +133,7 @@ namespace AppEngine
                     Timeout = tlsTorScan.Timeout;
                     JsonFilePath = tlsTorScan.JsonFilePath;
                     WordlistPath = tlsTorScan.WordlistPath;
-                    Host =  tlsTorScan.host;
+                    Host = tlsTorScan.host;
                     CPPort = tlsTorScan.Port;
                     Password = tlsTorScan.Password;
                     TorIP = tlsTorScan.tor_ip;
@@ -186,7 +186,7 @@ namespace AppEngine
             };
 
             // Handle duplicate file names
-            string directory = Path.GetDirectoryName(filePath);
+            string directory = Path.GetDirectoryName(filePath) ?? string.Empty;
             string fileName = Path.GetFileNameWithoutExtension(filePath);
             string extension = Path.GetExtension(filePath);
 
@@ -250,11 +250,17 @@ namespace AppEngine
             INetwork normalScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainScanOutput();
-            foreach (var words in wordlists)
+            var wires = new GlobalWires();
+            int total = wordlists.Length;
+
+            for (int i = 0; i < total; i++)
             {
-                var result = await normalScan.SendAsync(words);
+                wires.ShowProgress(i + 1, total, wordlists[i]);
+                var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
+
+            Console.WriteLine("\n[DONE] Scan Complete.");
             await WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
         public async Task TlsNormalTorScan()

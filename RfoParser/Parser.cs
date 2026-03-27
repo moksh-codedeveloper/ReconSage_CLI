@@ -55,7 +55,8 @@ namespace TorConfigParser
 
             if (!int.TryParse(data["tor_port"], out int _tor_port))
                 throw new Exception("You passed  tor port value not in number please pass it  in number not in anyother data types");
-            bool validTorIP = IPAddress.TryParse(data["tor_ip"], out IPAddress tor_ip);
+            IPAddress? tor_ip = null;
+            bool validTorIP = IPAddress.TryParse(data["tor_ip"], out tor_ip);
             if (!validTorIP)
                 throw new Exception("There is something wrong with the ip you passed here in top_ip so yeah please verify");
 
