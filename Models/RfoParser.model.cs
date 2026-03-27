@@ -1,6 +1,3 @@
-using System.ComponentModel;
-using System.Net;
-
 namespace RfoModel
 {
     public class RfoParsedModel
@@ -14,5 +11,6 @@ namespace RfoModel
         public string host{set;get;} = string.Empty;
         public string tor_ip{set;get;} = string.Empty;
         public int tor_port{set;get;}
+        public int delay{set;get;}
     }
 }

@@ -1,13 +1,14 @@
 using System.Net;
 using System.Net.Sockets;
+using IParser;
 using RfoModel;
 
 namespace TorConfigParser
 {
-    public class Parser
+    public class RfoParser : IFileParser<RfoParsedModel>
     {
         public string _filepath { set; get; } = string.Empty;
-        public Parser(string filepath)
+        public RfoParser(string filepath)
         {
             _filepath = filepath;
         }
@@ -30,7 +31,7 @@ namespace TorConfigParser
                     data[parts[0].Trim()] = parts[1].Trim();
                 }
             }
-            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path" , "tor_ip", "tor_port"};
+            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path" , "tor_ip", "tor_port", "delay"};
             foreach (var keys in requiredData)
                 if (!data.ContainsKey(keys))
                     throw new Exception("you it seems like you have passed the wrong file which was not supposed to be passed here please pass config.rfo");
@@ -64,10 +65,11 @@ namespace TorConfigParser
 
             if (!data["json_file_path"].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Output file must be .json.");
+            if(!int.TryParse(data["delay"], out int delay)) throw new Exception("Value error: delay is not integer but it should be integer not any other value");
+
             return data;
-        
         }
-        public RfoParsedModel DictToObject()
+        public RfoParsedModel ParseDictToModel()
         {
             Dictionary<string, string> parsedData = Parse();
             RfoParsedModel parsedModel = new RfoParsedModel();
@@ -80,6 +82,7 @@ namespace TorConfigParser
             parsedModel.Password = parsedData["password"];
             parsedModel.tor_ip = parsedData["tor_ip"];
             parsedModel.tor_port = int.Parse(parsedData["tor_port"]);
+            parsedModel.delay = int.Parse(parsedData["delay"]);
             return parsedModel;
         }
     }

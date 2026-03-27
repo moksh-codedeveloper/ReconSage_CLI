@@ -2,11 +2,9 @@ using System.Diagnostics;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Interface.Network;
-using ITor;
 using MihaZupan;
 using ScanOutputModel;
 using StealthStack;
-using TorRotator;
 using Wire;
 
 namespace NormalTorScan
@@ -20,7 +18,8 @@ namespace NormalTorScan
         private string Host = string.Empty;
         private string Password = string.Empty;
         private int CPPort;
-        public TorScan(string target, int timeout, int port, int tor_port, string password, string host, string tor_ip)
+        private readonly int Delay;
+        public TorScan(string target, int timeout, int port, int tor_port, string password, string host, string tor_ip, int delay)
         {
             Target = target;
             Timeout = timeout;
@@ -29,6 +28,7 @@ namespace NormalTorScan
             Password = password;
             TorIP = tor_ip;
             TorPort = tor_port;
+            Delay = delay;
         }
         public async Task<ScanOutput> SendAsync(string Domain)
         {
@@ -46,7 +46,6 @@ namespace NormalTorScan
             var wires = new GlobalWires();
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
             Random  random = new();
-            int Delay = 1000;
             var _jitterValue = random.Next(Delay, Delay * 20);
             try
             {
@@ -124,6 +123,7 @@ namespace NormalTorScan
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
             var sw = new Stopwatch();
             var wires = new GlobalWires();
+            var _jitterValue = new Random().Next(Delay, Delay * 10);
             try
             {
                 sw.Start();
@@ -132,7 +132,7 @@ namespace NormalTorScan
                 if (wires.IsDetected((int)result.StatusCode))
                 {
                     HeaderDisguise.Apply(request);
-                    await Task.Delay(6000);
+                    await Task.Delay(_jitterValue);
                 }
                 tlsScan.Target = targetDomain;
                 tlsScan.StatusCode = (int)result.StatusCode;

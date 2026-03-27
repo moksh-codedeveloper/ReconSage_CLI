@@ -1,11 +1,12 @@
+using IParser;
 using ResoModel;
 
 namespace ResoParser
 {
-    public class Parser
+    public class RsoParser : IFileParser<RModel>
     {
         public string RsoFilePath { set; get; } = string.Empty;
-        public Parser(string filepath)
+        public RsoParser(string filepath)
         {
             RsoFilePath = filepath;
         }
@@ -27,7 +28,7 @@ namespace ResoParser
             }
 
             // REQUIRED KEYS CHECK
-            string[] requiredKeys = { "target", "concurrency", "timeout", "json_file_path", "wordlist_path"};
+            string[] requiredKeys = { "target", "concurrency", "timeout", "json_file_path", "wordlist_path", "delay"};
 
             foreach (var key in requiredKeys)
             {
@@ -45,6 +46,9 @@ namespace ResoParser
     
             if (!int.TryParse(data["timeout"], out int timeout) || timeout <= 0)
                 throw new Exception("Invalid timeout value.");
+            
+            if(!int.TryParse(data["delay"], out int delay))
+                throw new Exception("This value is not valid so pass a legit number value for delay");
 
             // FILE EXTENSION CHECKS
             if (!data["wordlist_path"].EndsWith(".txt", StringComparison.OrdinalIgnoreCase))
@@ -55,15 +59,17 @@ namespace ResoParser
             return data;
         }
 
-        public RModel ParseDictToObject(Dictionary<string, string> data)
+        public RModel ParseDictToModel()
         {
+            Dictionary<string, string> data = Parse();
             return new RModel
             {
                 Target = data["target"],
                 Concurrency = int.Parse(data["concurrency"]),
                 Timeout = int.Parse(data["timeout"]),
                 JsonFilePath = data["json_file_path"],
-                WordlistPath = data["wordlist_path"]
+                WordlistPath = data["wordlist_path"],
+                Delay = int.Parse(data["delay"]),
             };
         }
     }

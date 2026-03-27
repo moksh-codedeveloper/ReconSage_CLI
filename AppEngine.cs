@@ -1,20 +1,21 @@
-using ScanModels.CLIVersion;
 using ScanOutputModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ResoParser;
+using RfoModel;
 using FirewallAnalysis;
 using Analysis;
 using FirewallAnalysis.Model;
 using RateLimitAnalysis;
 using RateLimitDetector.Model;
 using IParser;
-using NormalScanCliModel;
 using Wire;
 using WarmUpScan;
-using System.Security;
-using StealthStack;
-using System.Security.Cryptography.X509Certificates;
+using ResoModel;
+using TorConfigParser;
+using Interface.Network;
+using NormalTorScan;
+using ControlPortUse;
 
 namespace AppEngine
 {
@@ -22,12 +23,15 @@ namespace AppEngine
     {
         private string Target = string.Empty;
         private int Concurrency;
-        private int Timeout; 
+        private int Timeout;
         private int TorPort;
         private string TorIP = string.Empty;
         private string Host = string.Empty;
+        private int CPPort;
+        private string Password = string.Empty;
         private string WordlistPath = string.Empty;
         private string JsonFilePath = string.Empty;
+        private int Delay;
         public async Task RunScan(string[] args)
         {
             if (args.Length <= 1)
@@ -35,10 +39,10 @@ namespace AppEngine
                 throw new Exception("Not args have been passed  you should pass a proper args and you should read docs for that...");
             }
             switch (args[0])
-            {  
+            {
                 case "--waf-analysis":
                     {
-                        if (args.Length == 0)
+                        if (args.Length < 2)
                         {
                             Console.WriteLine("Error: Please provide a JSON file path.");
                             break;
@@ -60,7 +64,7 @@ namespace AppEngine
                     }
                 case "--rate-limit":
                     {
-                        if (args.Length == 0)
+                        if (args.Length < 2)
                         {
                             Console.WriteLine("ERROR please provided a file a valid");
                             break;
@@ -76,25 +80,98 @@ namespace AppEngine
                         return;
                     }
                 case "--brute-force":
-                    ICLIParser<NormalScanCliParserModel> parser = new CLIMainEngine();
-                    NormalScanCliParserModel cliParserModel = parser.ArgsProcess(args);
-                    Target = cliParserModel.Target;
-                    Concurrency = cliParserModel.Concurrency;
-                    Timeout = cliParserModel.Timeout;
-                    WordlistPath = cliParserModel.WordlistPath;
-                    JsonFilePath = cliParserModel.JsonFilePath;
+
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+
+                    IFileParser<RModel> fileParser = new RsoParser(args[1]);
+                    RModel rsoModel = fileParser.ParseDictToModel();
+                    Target = rsoModel.Target;
+                    Concurrency = rsoModel.Concurrency;
+                    Timeout = rsoModel.Timeout;
+                    JsonFilePath = rsoModel.JsonFilePath;
+                    WordlistPath = rsoModel.WordlistPath;
                     await RunBruteScan();
                     break;
                 case "--sequential-scan":
-                    ICLIParser<NormalScanCliParserModel> parser1 = new CLIMainEngine();
-                    NormalScanCliParserModel parserModel = parser1.ArgsProcess(args);
-                    Target = parserModel.Target;
-                    Timeout = parserModel.Timeout;
-                    Concurrency = parserModel.Concurrency;
-                    JsonFilePath = parserModel.JsonFilePath;
-                    WordlistPath = parserModel.WordlistPath;
-                    int Delay = parserModel.delay;
-                    await RunSequentialScan(Delay);
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+
+                    IFileParser<RModel> fileParser1 = new RsoParser(args[1]);
+                    RModel rsoModel1 = fileParser1.ParseDictToModel();
+                    Target = rsoModel1.Target;
+                    Concurrency = rsoModel1.Concurrency;
+                    Timeout = rsoModel1.Timeout;
+                    JsonFilePath = rsoModel1.JsonFilePath;
+                    WordlistPath = rsoModel1.WordlistPath;
+                    Delay = rsoModel1.Delay;
+                    await RunSequentialScan();
+                    break;
+                case "--tor-normal-scan":
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+                    IFileParser<RfoParsedModel> RfoModel = new RfoParser(args[1]);
+                    RfoParsedModel normalTorParsedModel = RfoModel.ParseDictToModel();
+                    Target = normalTorParsedModel.Target;
+                    Timeout = normalTorParsedModel.Timeout;
+                    JsonFilePath = normalTorParsedModel.JsonFilePath;
+                    Host = normalTorParsedModel.host;
+                    Password = normalTorParsedModel.Password;
+                    TorIP = normalTorParsedModel.tor_ip;
+                    TorPort = normalTorParsedModel.tor_port;
+                    CPPort = normalTorParsedModel.Port;
+                    WordlistPath = normalTorParsedModel.WordlistPath;
+                    Delay = normalTorParsedModel.delay;
+                    await NormalTorScan();
+                    break;
+                case "tls-normal-tor-scan":
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+                    IFileParser<RfoParsedModel> rfoParsedModel = new RfoParser(args[1]);
+                    RfoParsedModel tlsTorScan = rfoParsedModel.ParseDictToModel();
+                    Target = tlsTorScan.Target;
+                    Timeout = tlsTorScan.Timeout;
+                    JsonFilePath = tlsTorScan.JsonFilePath;
+                    WordlistPath = tlsTorScan.WordlistPath;
+                    Host =  tlsTorScan.host;
+                    CPPort = tlsTorScan.Port;
+                    Password = tlsTorScan.Password;
+                    TorIP = tlsTorScan.tor_ip;
+                    TorPort = tlsTorScan.tor_port;
+                    Delay = tlsTorScan.delay;
+                    await TlsNormalTorScan();
+                    break;
+                case "control-port-normal-scan":
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+                    Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
+                    IFileParser<RfoParsedModel> controlPortNormalScan = new RfoParser(args[1]);
+                    RfoParsedModel controlParsedModel = controlPortNormalScan.ParseDictToModel();
+                    Target = controlParsedModel.Target;
+                    Timeout = controlParsedModel.Timeout;
+                    Host = controlParsedModel.host;
+                    CPPort = controlParsedModel.Port;
+                    Password = controlParsedModel.Password;
+                    Delay = controlParsedModel.delay;
+                    WordlistPath = controlParsedModel.WordlistPath;
+                    JsonFilePath = controlParsedModel.JsonFilePath;
+                    await ControlPortScan();
+                    break;
+                case "control-port-tls-scan":
+                    if (args.Length < 2)
+                        throw new Exception("I think you have passed no-value for the args");
+                    Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
+                    IFileParser<RfoParsedModel> controlPortTlsScan = new RfoParser(args[1]);
+                    RfoParsedModel controlTlsParsedModel = controlPortTlsScan.ParseDictToModel();
+                    Target = controlTlsParsedModel.Target;
+                    Timeout = controlTlsParsedModel.Timeout;
+                    Host = controlTlsParsedModel.host;
+                    CPPort = controlTlsParsedModel.Port;
+                    Password = controlTlsParsedModel.Password;
+                    Delay = controlTlsParsedModel.delay;
+                    WordlistPath = controlTlsParsedModel.WordlistPath;
+                    JsonFilePath = controlTlsParsedModel.JsonFilePath;
+                    await ControlPortTlsScan();
                     break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
@@ -159,14 +236,64 @@ namespace AppEngine
             var result = await scan.RunBruteFastScan(wordlists);
             await WriteToJsonAsync(result, JsonFilePath);
         }
-        public async Task RunSequentialScan(int Delay)
+        public async Task RunSequentialScan()
         {
             var scan = new Scan(Target, Concurrency, Timeout);
             var wires = new GlobalWires();
-            var wordlists = await  wires.ProcessWordlist(WordlistPath);
+            var wordlists = await wires.ProcessWordlist(WordlistPath);
             var result = await scan.RunSequentialSafeScan(wordlists, Delay);
             await WriteToJsonAsync(result, JsonFilePath);
             PrintToConsole(result);
+        }
+        public async Task NormalTorScan()
+        {
+            INetwork normalScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var mainScanOutput = new MainScanOutput();
+            foreach (var words in wordlists)
+            {
+                var result = await normalScan.SendAsync(words);
+                mainScanOutput.Result.Add(result);
+            }
+            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+        }
+        public async Task TlsNormalTorScan()
+        {
+            ITlsScan tlsScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var mainScanOutput = new MainTorScan();
+            foreach (var words in wordlists)
+            {
+                var result = await tlsScan.TlsScan(words);
+                mainScanOutput.Results.Add(result);
+            }
+            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+        }
+
+        public async Task ControlPortScan()
+        {
+            INetwork normalScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var mainScanOutput = new MainScanOutput();
+            foreach (var words in wordlists)
+            {
+                var result = await normalScan.SendAsync(words);
+                mainScanOutput.Result.Add(result);
+            }
+            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+        }
+
+        public async Task ControlPortTlsScan()
+        {
+            ITlsScan tlsScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var mainScanOutput = new MainTorScan();
+            foreach (var words in wordlists)
+            {
+                var result = await tlsScan.TlsScan(words);
+                mainScanOutput.Results.Add(result);
+            }
+            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
     }
 }
