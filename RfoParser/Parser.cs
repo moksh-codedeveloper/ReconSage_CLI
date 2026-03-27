@@ -15,7 +15,7 @@ namespace TorConfigParser
         private Dictionary<string, string> Parse()
         {
             Dictionary<string, string> data = new Dictionary<string, string>();
-            if (_filepath == "config.rfo")
+            if (!_filepath.EndsWith(".rfo"))
             {
                 throw new Exception("The file you have passed doesn't seem to have name config.rfo so please name it and pass it proper file");
             }
@@ -31,7 +31,7 @@ namespace TorConfigParser
                     data[parts[0].Trim()] = parts[1].Trim();
                 }
             }
-            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path" , "tor_ip", "tor_port", "delay"};
+            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path", "tor_ip", "tor_port", "delay" };
             foreach (var keys in requiredData)
                 if (!data.ContainsKey(keys))
                     throw new Exception("you it seems like you have passed the wrong file which was not supposed to be passed here please pass config.rfo");
@@ -47,13 +47,13 @@ namespace TorConfigParser
 
             if (!Uri.TryCreate(data["target"], UriKind.Absolute, out Uri? target) || (target.Scheme != Uri.UriSchemeHttp && target.Scheme != Uri.UriSchemeHttps))
                 throw new Exception("Target has broken http url or  it is not Http Url please pass a proper url of https or http");
-            
+
             IPAddress? ip = null;
             bool valid = IPAddress.TryParse(data["host"], out ip);
             if (!valid)
                 throw new Exception("There is something wrong with the ip you passed here in host so yeah please verify");
-            
-            if(!int.TryParse(data["tor_port"], out int _tor_port))
+
+            if (!int.TryParse(data["tor_port"], out int _tor_port))
                 throw new Exception("You passed  tor port value not in number please pass it  in number not in anyother data types");
             bool validTorIP = IPAddress.TryParse(data["tor_ip"], out IPAddress tor_ip);
             if (!validTorIP)
@@ -65,7 +65,7 @@ namespace TorConfigParser
 
             if (!data["json_file_path"].EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                 throw new Exception("Output file must be .json.");
-            if(!int.TryParse(data["delay"], out int delay)) throw new Exception("Value error: delay is not integer but it should be integer not any other value");
+            if (!int.TryParse(data["delay"], out int delay)) throw new Exception("Value error: delay is not integer but it should be integer not any other value");
 
             return data;
         }
