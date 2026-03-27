@@ -21,6 +21,7 @@ namespace AppEngine
 {
     public class App
     {
+        private GlobalWires wires = new GlobalWires();
         private string Target = string.Empty;
         private int Concurrency;
         private int Timeout;
@@ -124,7 +125,7 @@ namespace AppEngine
                     Delay = normalTorParsedModel.delay;
                     await NormalTorScan();
                     break;
-                case "tls-normal-tor-scan":
+                case "--tls-normal-tor-scan":
                     if (args.Length < 2)
                         throw new Exception("I think you have passed no-value for the args");
                     IFileParser<RfoParsedModel> rfoParsedModel = new RfoParser(args[1]);
@@ -141,7 +142,7 @@ namespace AppEngine
                     Delay = tlsTorScan.delay;
                     await TlsNormalTorScan();
                     break;
-                case "control-port-normal-scan":
+                case "--control-port-normal-scan":
                     if (args.Length < 2)
                         throw new Exception("I think you have passed no-value for the args");
                     Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
@@ -157,7 +158,7 @@ namespace AppEngine
                     JsonFilePath = controlParsedModel.JsonFilePath;
                     await ControlPortScan();
                     break;
-                case "control-port-tls-scan":
+                case "--control-port-tls-scan":
                     if (args.Length < 2)
                         throw new Exception("I think you have passed no-value for the args");
                     Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
@@ -177,64 +178,13 @@ namespace AppEngine
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
         }
-        public async Task WriteToJsonAsync<T>(T data, string filePath)
-        {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            };
-
-            // Handle duplicate file names
-            string directory = Path.GetDirectoryName(filePath) ?? string.Empty;
-            string fileName = Path.GetFileNameWithoutExtension(filePath);
-            string extension = Path.GetExtension(filePath);
-
-            string newFilePath = filePath;
-            int count = 1;
-
-            while (File.Exists(newFilePath))
-            {
-                newFilePath = Path.Combine(directory, $"{fileName}({count}){extension}");
-                count++;
-            }
-
-            var json = JsonSerializer.Serialize(data, options);
-
-            await File.WriteAllTextAsync(newFilePath, json);
-
-            Console.WriteLine($"JSON output written to: {newFilePath}");
-        }
-        public void PrintToConsole(MainScanOutput mainOutput)
-        {
-            Console.WriteLine("========== ReconSage Scan Results ==========\n");
-
-            foreach (var result in mainOutput.Result)
-            {
-                Console.WriteLine("--------------------------------------------");
-                Console.WriteLine($"Target     : {result.Target}");
-                Console.WriteLine($"StatusCode : {result.StatusCode}");
-                Console.WriteLine($"Latency    : {result.LatencyMS} ms");
-                Console.WriteLine($"Message    : {result.Message}");
-
-                if (result.Headers.Count > 0)
-                {
-                    Console.WriteLine("Headers:");
-                    foreach (var header in result.Headers)
-                    {
-                        Console.WriteLine($"   {header.Key} : {header.Value}");
-                    }
-                }
-            }
-            Console.WriteLine("\n============================================");
-        }
         public async Task RunBruteScan()
         {
             GlobalWires wires = new GlobalWires();
             string[] wordlists = await wires.ProcessWordlist(WordlistPath);
             var scan = new Scan(Target, Concurrency, Timeout);
             var result = await scan.RunBruteFastScan(wordlists);
-            await WriteToJsonAsync(result, JsonFilePath);
+            await wires.WriteToJsonAsync(result, JsonFilePath);
         }
         public async Task RunSequentialScan()
         {
@@ -242,8 +192,7 @@ namespace AppEngine
             var wires = new GlobalWires();
             var wordlists = await wires.ProcessWordlist(WordlistPath);
             var result = await scan.RunSequentialSafeScan(wordlists, Delay);
-            await WriteToJsonAsync(result, JsonFilePath);
-            PrintToConsole(result);
+            await wires.WriteToJsonAsync(result, JsonFilePath);
         }
         public async Task NormalTorScan()
         {
@@ -260,20 +209,23 @@ namespace AppEngine
                 mainScanOutput.Result.Add(result);
             }
 
-            Console.WriteLine("\n[DONE] Scan Complete.");
-            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+            Console.WriteLine("\n[DONE] Normal Tor Scan Complete.");
+            await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
         public async Task TlsNormalTorScan()
         {
             ITlsScan tlsScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
-            foreach (var words in wordlists)
+            var wires = new GlobalWires();
+            for (int i = 0; i < wordlists.Length; i++)
             {
-                var result = await tlsScan.TlsScan(words);
+                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
+                var result = await tlsScan.TlsScan(wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
-            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+            Console.WriteLine("\n[DONE] TLS Scan Complete.");
+            await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
 
         public async Task ControlPortScan()
@@ -281,12 +233,14 @@ namespace AppEngine
             INetwork normalScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainScanOutput();
-            foreach (var words in wordlists)
+            for (int i = 0; i < wordlists.Length; i++)
             {
-                var result = await normalScan.SendAsync(words);
+                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
+                var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
-            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+            Console.WriteLine("\n[DONE] Control Port version of Normal tor scan Scan Complete.");
+            await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
 
         public async Task ControlPortTlsScan()
@@ -294,12 +248,14 @@ namespace AppEngine
             ITlsScan tlsScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
-            foreach (var words in wordlists)
+            for(int i = 0; i < wordlists.Length; i++)
             {
-                var result = await tlsScan.TlsScan(words);
+                var result = await tlsScan.TlsScan(wordlists[i]);
+                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
-            await WriteToJsonAsync(mainScanOutput, JsonFilePath);
+            Console.WriteLine("\n[DONE] Control Port TLS Scan Complete.");
+            await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
     }
 }

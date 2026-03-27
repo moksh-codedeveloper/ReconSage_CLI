@@ -3,6 +3,7 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Interface.Network;
 using MihaZupan;
+using ReconSageLogger;
 using ScanOutputModel;
 using StealthStack;
 using Wire;
@@ -54,7 +55,9 @@ namespace NormalTorScan
                 sw.Stop();
                 if (wires.IsDetected((int)result.StatusCode))
                 {
+                    Logger.Warn($"Got detected at {Domain}");
                     HeaderDisguise.Apply(request);
+                    Logger.Success("Headers changed successfully");
                     await Task.Delay(_jitterValue);
                 }
                 scan.Target = targetedDomain;
@@ -131,7 +134,9 @@ namespace NormalTorScan
                 sw.Stop();
                 if (wires.IsDetected((int)result.StatusCode))
                 {
+                    Logger.Warn($"Got detected at {Domain}");
                     HeaderDisguise.Apply(request);
+                    Logger.Success("Headers changed successfully");
                     await Task.Delay(_jitterValue);
                 }
                 tlsScan.Target = targetDomain;

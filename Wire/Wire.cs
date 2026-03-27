@@ -1,5 +1,7 @@
+using ReconSageLogger;
 using ScanOutputModel;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Wire
 {
@@ -110,49 +112,58 @@ namespace Wire
         }
         public void ShowProgress(int current, int total, string target)
         {
-            // \r moves the cursor to the start of the line
-            // The $ allows us to put variables directly into the string
-            Console.Write($"\r[SCANNING] Target: {target,-20} | Progress: ({current}/{total}) [");
+            Console.Write($"\r");
+            Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.Write("[SCANNING] ");
+            Console.ResetColor();
+            Console.Write($"Target: ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($"{target,-20}");
+            Console.ResetColor();
+            Console.Write($" | Progress: ({current}/{total}) [");
 
-            // Optional: Add a small visual bar
             int barWidth = 20;
             int progress = (int)((double)current / total * barWidth);
 
+            Console.ForegroundColor = ConsoleColor.Green;
             for (int i = 0; i < barWidth; i++)
             {
                 if (i < progress) Console.Write("=");
-                else Console.Write(" ");
+                else
+                {
+                    Console.ResetColor();
+                    Console.Write(" ");
+                }
             }
-
+            Console.ResetColor();
             Console.Write("]");
         }
-        /*
-        how to use the above function easily 
-        int total = wordlist.Count;
-for (int i = 0; i < total; i++)
-{
-    string currentTarget = wordlist[i];
-    
-    // Update the animation
-    ShowProgress(i + 1, total, currentTarget);
-    
-    // Perform the actual stealth scan
-    await engine.ScanTarget(currentTarget);
-}
+        public async Task WriteToJsonAsync<T>(T data, string filePath)
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
 
-// Move to a new line when finished
-Console.WriteLine("\n[DONE] Batch Processing Complete.");
+            // Handle duplicate file names
+            string directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            string extension = Path.GetExtension(filePath);
 
-Retro style
-public static void TypeWriter(string message)
-{
-    foreach (char c in message)
-    {
-        Console.Write(c);
-        Thread.Sleep(30); // 30ms feels like an old mechanical printer
-    }
-    Console.WriteLine();
-}
-        */
+            string newFilePath = filePath;
+            int count = 1;
+
+            while (File.Exists(newFilePath))
+            {
+                newFilePath = Path.Combine(directory, $"{fileName}({count}){extension}");
+                count++;
+            }
+
+            var json = JsonSerializer.Serialize(data, options);
+
+            await File.WriteAllTextAsync(newFilePath, json);
+            Logger.Success($"JSON output written to: {newFilePath}");
+        }
     }
 }
