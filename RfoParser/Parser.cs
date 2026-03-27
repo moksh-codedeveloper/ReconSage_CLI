@@ -31,7 +31,7 @@ namespace TorConfigParser
                     data[parts[0].Trim()] = parts[1].Trim();
                 }
             }
-            List<string> requiredData = new() { "host", "port", "password", "target", "tiemout", "json_file_path", "wordlist_path", "tor_ip", "tor_port", "delay" };
+            List<string> requiredData = new() { "host", "port", "password", "target", "timeout", "json_file_path", "wordlist_path", "tor_ip", "tor_port", "delay" };
             foreach (var keys in requiredData)
                 if (!data.ContainsKey(keys))
                     throw new Exception("you it seems like you have passed the wrong file which was not supposed to be passed here please pass config.rfo");
