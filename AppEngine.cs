@@ -16,6 +16,7 @@ using TorConfigParser;
 using Interface.Network;
 using NormalTorScan;
 using ControlPortUse;
+using ReconSageLogger;
 
 namespace AppEngine
 {
@@ -180,6 +181,7 @@ namespace AppEngine
         }
         public async Task RunBruteScan()
         {
+            Logger.Scan($"Brute Force Scan Initialising for {Target}");
             GlobalWires wires = new GlobalWires();
             string[] wordlists = await wires.ProcessWordlist(WordlistPath);
             var scan = new Scan(Target, Concurrency, Timeout);
@@ -196,6 +198,7 @@ namespace AppEngine
         }
         public async Task NormalTorScan()
         {
+            Logger.Scan($"Initializing the Normal Tor scan on {Target}.......");
             INetwork normalScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainScanOutput();
@@ -208,12 +211,12 @@ namespace AppEngine
                 var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
-
-            Console.WriteLine("\n[DONE] Normal Tor Scan Complete.");
+            Logger.Done("Normal Tor Scan Complete.");
             await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
         public async Task TlsNormalTorScan()
         {
+            Logger.Scan($"Initializing the Tls Normal Tor Scan on {Target}......");
             ITlsScan tlsScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
@@ -224,12 +227,13 @@ namespace AppEngine
                 var result = await tlsScan.TlsScan(wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
-            Console.WriteLine("\n[DONE] TLS Scan Complete.");
+            Logger.Done("Tls Normal Tor Scan Done.");
             await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
 
         public async Task ControlPortScan()
         {
+            Logger.Scan($"Initializing the Control Port Version Tor Scan {Target}.......");
             INetwork normalScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainScanOutput();
@@ -239,12 +243,13 @@ namespace AppEngine
                 var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
-            Console.WriteLine("\n[DONE] Control Port version of Normal tor scan Scan Complete.");
+            Logger.Done($"Control Port Version of Tor Scan is Done");
             await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
 
         public async Task ControlPortTlsScan()
         {
+            Logger.Scan($"Initialising the Tls Scan on Tor Control Port Version Scan {Target}.......");
             ITlsScan tlsScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
@@ -254,7 +259,7 @@ namespace AppEngine
                 wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
-            Console.WriteLine("\n[DONE] Control Port TLS Scan Complete.");
+            Logger.Done("Control Port TLS Scan Done.....");
             await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
         }
     }

@@ -1,11 +1,10 @@
 using System.Diagnostics;
+using ReconSageLogger;
 using ScanOutputModel;
 using Wire;
 
 namespace WarmUpScan
 {
-    // TODO 1 : Remove all the wordlists in-function processing in-fact take the wordlists from the function as the arguements 
-    // TODO 2 : Clean up the old scanner file and replace it with this one 
     public class Scan
     {
         private readonly string Target;
@@ -18,7 +17,7 @@ namespace WarmUpScan
             Timeout = timeout;
             Concurrency = concurrency;
             _client = new HttpClient();
-        } 
+        }
         public async Task<ScanOutput> DomainScan(string domain)
         {
             ScanOutput scan = new ScanOutput();
@@ -35,9 +34,10 @@ namespace WarmUpScan
                 scan.Headers = result.Headers.ToDictionary(h => h.Key, h => string.Join(", ", h.Value));
                 scan.LatencyMS = sw.ElapsedMilliseconds;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 sw.Stop();
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 scan.Message = ex.Message;
                 scan.StatusCode = 0;
                 scan.Target = subDomainTarget;
@@ -48,50 +48,63 @@ namespace WarmUpScan
         }
         public async Task<MainScanOutput> RunBruteFastScan(string[] wordlists)
         {
+            Logger.Scan("Brute Force Scan Initialising......");
             object _resultLock = new object();
             MainScanOutput scanOutput = new MainScanOutput();
             using var semaphore = new SemaphoreSlim(Concurrency);
+            var wires = new GlobalWires();
+            int completed = 0; // atomic counter
+            int total = wordlists.Length; // or .Length depending on your type
+
             var tasks = wordlists.Select(async domain =>
             {
                 await semaphore.WaitAsync();
                 try
                 {
                     var result = await DomainScan(domain);
+
                     lock (_resultLock)
                     {
                         scanOutput.Result.Add(result);
                     }
+
+                    int current = Interlocked.Increment(ref completed); // thread-safe increment
+                    wires.ShowProgress(current, total, domain);
                 }
                 finally
                 {
                     semaphore.Release();
                 }
             });
+
             await Task.WhenAll(tasks);
+            Console.WriteLine(); // newline after progress bar finishes
+            Logger.Done("Brute Force Scan Done.....");
             return scanOutput;
         }
         public async Task<MainScanOutput> RunSequentialSafeScan(string[] wordlists, int delayMs = 500)
         {
-            MainScanOutput mainScan = new MainScanOutput();
-            GlobalWires wires = new GlobalWires();
-            Console.WriteLine($"[!] Starting Sequential Scan. Delay: {delayMs}ms");
-            foreach (var domain in wordlists)
+            Logger.Scan($"[!] Starting Sequential Scan{Target}.....");
+            var mainScan = new MainScanOutput();
+            var wires = new GlobalWires();
+            var _jitterValue = new Random().Next(delayMs, delayMs * 10);
+            for (int i = 0; i < wordlists.Length; i++)
             {
-                await  Task.Delay(delayMs);
-                var result = await DomainScan(domain);
-                if (wires.IsDetected(result.StatusCode))
+                var domainToTarget = Target + wordlists[i];
+                await Task.Delay(delayMs);
+                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
+                var result = await DomainScan(domainToTarget);
+                if (wires.IsDetected((int)result.StatusCode))
                 {
-                    Console.WriteLine($"[!] Detection Triggered ({result.StatusCode}) at: {domain}");
-                    Console.WriteLine("[!] Pausing scan for 30 seconds to cool down...");
-                    await Task.Delay(30000); 
+                    Logger.Warn($"Detected at Directory :- {wordlists[i]}");
+                    Logger.Info($"Status code :- {(int)result.StatusCode}");
+                    Logger.Info($"Delay :- {_jitterValue}");
+                    await Task.Delay(_jitterValue);
+                    Logger.Scan($"Resuming the scan after wait :- {_jitterValue}ms");
                 }
                 mainScan.Result.Add(result);
-
-                int jitter = new Random().Next(-100, 100);
-                await Task.Delay(Math.Max(50, delayMs + jitter));
-
-                Console.WriteLine($"[+] Scanned: {domain} | Status: {result.StatusCode}");
             }
+            Logger.Done("Sequential Scan Completed");
             return mainScan;
         }
     }

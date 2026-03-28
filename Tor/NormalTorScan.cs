@@ -56,8 +56,10 @@ namespace NormalTorScan
                 if (wires.IsDetected((int)result.StatusCode))
                 {
                     Logger.Warn($"Got detected at {Domain}");
+                    Logger.Info("Commencing the Headers rotation");
                     HeaderDisguise.Apply(request);
                     Logger.Success("Headers changed successfully");
+                    Logger.Info($"Delay - {_jitterValue}");
                     await Task.Delay(_jitterValue);
                 }
                 scan.Target = targetedDomain;
@@ -67,11 +69,13 @@ namespace NormalTorScan
             }
             catch (HttpRequestException ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 scan.Message = ex.Message;
                 scan.LatencyMS = sw.ElapsedMilliseconds;
             }
             catch (Exception ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 scan.Message = ex.Message;
                 scan.LatencyMS = sw.ElapsedMilliseconds;
             }
@@ -135,8 +139,10 @@ namespace NormalTorScan
                 if (wires.IsDetected((int)result.StatusCode))
                 {
                     Logger.Warn($"Got detected at {Domain}");
+                    Logger.Info($"Commencing the Headers randomization");
                     HeaderDisguise.Apply(request);
                     Logger.Success("Headers changed successfully");
+                    Logger.Info($"Delay - {_jitterValue}");
                     await Task.Delay(_jitterValue);
                 }
                 tlsScan.Target = targetDomain;
@@ -145,11 +151,13 @@ namespace NormalTorScan
                 tlsScan.LatencyMS = sw.ElapsedMilliseconds;
             } catch(HttpRequestException ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 tlsScan.Message = ex.Message;
                 tlsScan.Target = targetDomain;
                 tlsScan.LatencyMS = sw.ElapsedMilliseconds;
             } catch(Exception ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 tlsScan.Message = ex.Message;
                 tlsScan.Target = targetDomain;
                 tlsScan.LatencyMS = sw.ElapsedMilliseconds;

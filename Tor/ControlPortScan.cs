@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using Interface.Network;
 using ITor;
 using MihaZupan;
+using ReconSageLogger;
 using ScanOutputModel;
 using StealthStack;
 using TorRotator;
@@ -54,9 +55,15 @@ namespace ControlPortUse
                 sw.Stop();
                 if (wires.IsDetected((int)result.StatusCode))
                 {
+                    Logger.Warn($"Control port team reporting we are detected :- {domain}");
                     HeaderDisguise.Apply(request);
+                    Logger.Info("Headers changed");
+                    Logger.Rotate("Commencing the Tor Circuits Rotation now");
                     await tor.RotateAsync();
+                    Logger.Done("Tor circuits rotated...");
+                    Logger.Info($"Delay :- {_jitterMinValue}ms");
                     await Task.Delay(_jitterMinValue);
+                    Logger.Scan("Resuming the scan now with new tor circuits.....");
                 }
                 scanOutput.Target = targetDomain;
                 scanOutput.StatusCode = (int)result.StatusCode;
@@ -66,6 +73,7 @@ namespace ControlPortUse
             }
             catch (Exception ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 scanOutput.Target = targetDomain;
                 scanOutput.Message = ex.Message;
                 scanOutput.LatencyMS = sw.ElapsedMilliseconds;
@@ -130,9 +138,15 @@ namespace ControlPortUse
                 sw.Stop();
                 if (wires.IsDetected((int)result.StatusCode))
                 {
-                    await tor.RotateAsync(cts.Token);
-                    await Task.Delay(_jitterMinValue);
+                    Logger.Warn($"Control port team reporting we are detected :- {domain}");
                     HeaderDisguise.Apply(request);
+                    Logger.Info("Headers changed");
+                    Logger.Rotate("Commencing the Tor Circuits Rotation now");
+                    await tor.RotateAsync();
+                    Logger.Done("Tor circuits rotated...");
+                    Logger.Info($"Delay :- {_jitterMinValue}ms");
+                    await Task.Delay(_jitterMinValue);
+                    Logger.Scan("Resuming the scan now with new tor circuits.....");
                 }
                 tlsScanModel.Target = targetDomain;
                 tlsScanModel.LatencyMS = sw.ElapsedMilliseconds;
@@ -141,6 +155,7 @@ namespace ControlPortUse
             }
             catch (Exception ex)
             {
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 tlsScanModel.Message = ex.Message;
                 tlsScanModel.LatencyMS = sw.ElapsedMilliseconds;
                 tlsScanModel.Target = targetDomain;

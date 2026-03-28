@@ -67,14 +67,14 @@ namespace Wire
                 MainScanOutput jsonDeserialised = JsonSerializer.Deserialize<MainScanOutput>(jsonString) ?? new MainScanOutput();
                 return jsonDeserialised;
             }
-            catch (FileNotFoundException)
+            catch (FileNotFoundException ex)
             {
-                Console.WriteLine($"Error: The file '{jsonFilePath}' was not found.");
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 return new MainScanOutput();
             }
             catch (JsonException ex)
             {
-                Console.WriteLine($"Error decoding JSON: {ex.Message}");
+                Logger.Error($"Unexpected Error - {ex.Message}");
                 return new MainScanOutput();
             }
         }
