@@ -43,57 +43,39 @@ namespace AppEngine
             switch (args[0])
             {
                 case "--waf-analysis":
-                    {
-                        if (args.Length < 2)
-                        {
-                            Console.WriteLine("Error: Please provide a JSON file path.");
-                            break;
-                        }
-
-                        string wafFilePath = args[1];
-
-                        if (!File.Exists(wafFilePath))
-                        {
-                            Console.WriteLine($"Error: The file '{wafFilePath}' does not exist.");
-                            break;
-                        }
-
-                        IAnalysis<WebFirewallAnalysisOutput> waf = new WafAnalysis();
-                        WebFirewallAnalysisOutput result = await waf.RunAnalysis(wafFilePath);
-                        WafAnalysis waf1 = new WafAnalysis();
-                        waf1.PrintResultInvestigation(result);
-                        return;
-                    }
-                case "--rate-limit":
-                    {
-                        if (args.Length < 2)
-                        {
-                            Console.WriteLine("ERROR please provided a file a valid");
-                            break;
-                        }
-                        string rlFilePath = args[1];
-                        if (!File.Exists(rlFilePath))
-                        {
-                            Console.WriteLine($"Error the file path in which file is present does not exist {rlFilePath}");
-                        }
-                        IAnalysis<RateLimitDetectionOutputModel> rateLimit = new RateLimit();
-                        RateLimitDetectionOutputModel rate = await rateLimit.RunAnalysis(rlFilePath);
-                        new RateLimit().PrintResult(rate);
-                        return;
-                    }
-                case "--brute-force":
-
                     if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    {
+                        Console.WriteLine("Error: Please provide a JSON file path.");
+                        break;
+                    }
 
-                    IFileParser<RModel> fileParser = new RsoParser(args[1]);
-                    RModel rsoModel = fileParser.ParseDictToModel();
-                    Target = rsoModel.Target;
-                    Concurrency = rsoModel.Concurrency;
-                    Timeout = rsoModel.Timeout;
-                    JsonFilePath = rsoModel.JsonFilePath;
-                    WordlistPath = rsoModel.WordlistPath;
-                    await RunBruteScan();
+                    string wafFilePath = args[1];
+
+                    if (!File.Exists(wafFilePath))
+                    {
+                        Console.WriteLine($"Error: The file '{wafFilePath}' does not exist.");
+                        break;
+                    }
+
+                    IAnalysis<WebFirewallAnalysisOutput> waf = new WafAnalysis();
+                    WebFirewallAnalysisOutput result = await waf.RunAnalysis(wafFilePath);
+                    WafAnalysis waf1 = new WafAnalysis();
+                    waf1.PrintResultInvestigation(result);
+                    break;
+                case "--rate-limit":
+                    if (args.Length < 2)
+                    {
+                        Console.WriteLine("ERROR please provided a file a valid");
+                        break;
+                    }
+                    string rlFilePath = args[1];
+                    if (!File.Exists(rlFilePath))
+                    {
+                        Console.WriteLine($"Error the file path in which file is present does not exist {rlFilePath}");
+                    }
+                    IAnalysis<RateLimitDetectionOutputModel> rateLimit = new RateLimit();
+                    RateLimitDetectionOutputModel rate = await rateLimit.RunAnalysis(rlFilePath);
+                    new RateLimit().PrintResult(rate);
                     break;
                 case "--sequential-scan":
                     if (args.Length < 2)
@@ -179,18 +161,9 @@ namespace AppEngine
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
         }
-        public async Task RunBruteScan()
-        {
-            Logger.Scan($"Brute Force Scan Initialising for {Target}");
-            GlobalWires wires = new GlobalWires();
-            string[] wordlists = await wires.ProcessWordlist(WordlistPath);
-            var scan = new Scan(Target, Concurrency, Timeout);
-            var result = await scan.RunBruteFastScan(wordlists);
-            await wires.WriteToJsonAsync(result, JsonFilePath);
-        }
         public async Task RunSequentialScan()
         {
-            var scan = new Scan(Target, Concurrency, Timeout);
+            var scan = new Scan(Target, Timeout, Concurrency);
             var wires = new GlobalWires();
             var wordlists = await wires.ProcessWordlist(WordlistPath);
             var result = await scan.RunSequentialSafeScan(wordlists, Delay);
@@ -253,7 +226,7 @@ namespace AppEngine
             ITlsScan tlsScan = new ControlPortTorScan(target: Target, timeout: Timeout, host: Host, tor_ip: TorIP, tor_port: TorPort, password: Password, port: CPPort, delay: Delay);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
-            for(int i = 0; i < wordlists.Length; i++)
+            for (int i = 0; i < wordlists.Length; i++)
             {
                 var result = await tlsScan.TlsScan(wordlists[i]);
                 wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);

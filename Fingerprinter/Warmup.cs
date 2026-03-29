@@ -46,54 +46,17 @@ namespace WarmUpScan
             }
             return scan;
         }
-        public async Task<MainScanOutput> RunBruteFastScan(string[] wordlists)
-        {
-            Logger.Scan("Brute Force Scan Initialising......");
-            object _resultLock = new object();
-            MainScanOutput scanOutput = new MainScanOutput();
-            using var semaphore = new SemaphoreSlim(Concurrency);
-            var wires = new GlobalWires();
-            int completed = 0; // atomic counter
-            int total = wordlists.Length; // or .Length depending on your type
-
-            var tasks = wordlists.Select(async domain =>
-            {
-                await semaphore.WaitAsync();
-                try
-                {
-                    var result = await DomainScan(domain);
-
-                    lock (_resultLock)
-                    {
-                        scanOutput.Result.Add(result);
-                    }
-
-                    int current = Interlocked.Increment(ref completed); // thread-safe increment
-                    wires.ShowProgress(current, total, domain);
-                }
-                finally
-                {
-                    semaphore.Release();
-                }
-            });
-
-            await Task.WhenAll(tasks);
-            Console.WriteLine(); // newline after progress bar finishes
-            Logger.Done("Brute Force Scan Done.....");
-            return scanOutput;
-        }
         public async Task<MainScanOutput> RunSequentialSafeScan(string[] wordlists, int delayMs = 500)
         {
-            Logger.Scan($"[!] Starting Sequential Scan{Target}.....");
+            Logger.Scan($"[!] Starting Sequential Scan :- {Target}.....");
             var mainScan = new MainScanOutput();
             var wires = new GlobalWires();
             var _jitterValue = new Random().Next(delayMs, delayMs * 10);
             for (int i = 0; i < wordlists.Length; i++)
             {
-                var domainToTarget = Target + wordlists[i];
                 await Task.Delay(delayMs);
                 wires.ShowProgress(i, wordlists.Length, wordlists[i]);
-                var result = await DomainScan(domainToTarget);
+                var result = await DomainScan(wordlists[i]);
                 if (wires.IsDetected((int)result.StatusCode))
                 {
                     Logger.Warn($"Detected at Directory :- {wordlists[i]}");
