@@ -1,5 +1,6 @@
 using ReconSageLogger;
 using ScanOutputModel;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -164,6 +165,16 @@ namespace Wire
 
             await File.WriteAllTextAsync(newFilePath, json);
             Logger.Success($"JSON output written to: {newFilePath}");
+        }
+        public HttpClient BuildClient(string proxyHost, int proxyPort)
+        {
+            var handler = new SocketsHttpHandler
+            {
+                Proxy = new WebProxy(proxyHost, proxyPort),
+                UseProxy = true,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(3)
+            };
+            return new HttpClient(handler);
         }
     }
 }

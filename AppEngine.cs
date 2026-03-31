@@ -17,6 +17,7 @@ using Interface.Network;
 using NormalTorScan;
 using ControlPortUse;
 using ReconSageLogger;
+using Proxy_Scan;
 
 namespace AppEngine
 {
@@ -43,9 +44,9 @@ namespace AppEngine
             switch (args[0])
             {
                 case "--waf-analysis":
-                    if (args.Length < 2)
+                    if(args.Length < 2)
                     {
-                        Console.WriteLine("Error: Please provide a JSON file path.");
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
                     }
 
@@ -53,7 +54,7 @@ namespace AppEngine
 
                     if (!File.Exists(wafFilePath))
                     {
-                        Console.WriteLine($"Error: The file '{wafFilePath}' does not exist.");
+                        Logger.Error("Files doesn't exist are you fool or what?");
                         break;
                     }
 
@@ -63,23 +64,27 @@ namespace AppEngine
                     waf1.PrintResultInvestigation(result);
                     break;
                 case "--rate-limit":
-                    if (args.Length < 2)
+                    if(args.Length < 2)
                     {
-                        Console.WriteLine("ERROR please provided a file a valid");
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
                     }
                     string rlFilePath = args[1];
                     if (!File.Exists(rlFilePath))
                     {
-                        Console.WriteLine($"Error the file path in which file is present does not exist {rlFilePath}");
+                        Logger.Error("Files doesn't exist are you fool or what?");
+                        break;
                     }
                     IAnalysis<RateLimitDetectionOutputModel> rateLimit = new RateLimit();
                     RateLimitDetectionOutputModel rate = await rateLimit.RunAnalysis(rlFilePath);
                     new RateLimit().PrintResult(rate);
                     break;
                 case "--sequential-scan":
-                    if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
 
                     IFileParser<RModel> fileParser1 = new RsoParser(args[1]);
                     RModel rsoModel1 = fileParser1.ParseDictToModel();
@@ -92,8 +97,11 @@ namespace AppEngine
                     await RunSequentialScan();
                     break;
                 case "--tor-normal-scan":
-                    if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
                     IFileParser<RfoParsedModel> RfoModel = new RfoParser(args[1]);
                     RfoParsedModel normalTorParsedModel = RfoModel.ParseDictToModel();
                     Target = normalTorParsedModel.Target;
@@ -109,8 +117,11 @@ namespace AppEngine
                     await NormalTorScan();
                     break;
                 case "--tls-normal-tor-scan":
-                    if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
                     IFileParser<RfoParsedModel> rfoParsedModel = new RfoParser(args[1]);
                     RfoParsedModel tlsTorScan = rfoParsedModel.ParseDictToModel();
                     Target = tlsTorScan.Target;
@@ -126,8 +137,11 @@ namespace AppEngine
                     await TlsNormalTorScan();
                     break;
                 case "--control-port-normal-scan":
-                    if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
                     Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
                     IFileParser<RfoParsedModel> controlPortNormalScan = new RfoParser(args[1]);
                     RfoParsedModel controlParsedModel = controlPortNormalScan.ParseDictToModel();
@@ -142,8 +156,11 @@ namespace AppEngine
                     await ControlPortScan();
                     break;
                 case "--control-port-tls-scan":
-                    if (args.Length < 2)
-                        throw new Exception("I think you have passed no-value for the args");
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
                     Console.WriteLine("WARNING! Now you are gonna be using the one of most powerful module of this whole tool and its painfully slow so start reading book now if you can");
                     IFileParser<RfoParsedModel> controlPortTlsScan = new RfoParser(args[1]);
                     RfoParsedModel controlTlsParsedModel = controlPortTlsScan.ParseDictToModel();
@@ -156,6 +173,25 @@ namespace AppEngine
                     WordlistPath = controlTlsParsedModel.WordlistPath;
                     JsonFilePath = controlTlsParsedModel.JsonFilePath;
                     await ControlPortTlsScan();
+                    break;
+                case "--proxy-scan":
+                    if(args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
+                    IFileParser<RfoParsedModel>  fileParser = new RfoParser(args[1]);
+                    RfoParsedModel proxyScanData = fileParser.ParseDictToModel();
+                    Target = proxyScanData.Target;
+                    Timeout = proxyScanData.Timeout;
+                    var proxyHost = proxyScanData.host;
+                    var proxyPort = proxyScanData.Port;
+                    JsonFilePath = proxyScanData.JsonFilePath;
+                    WordlistPath = proxyScanData.WordlistPath;
+                    TorIP = proxyScanData.tor_ip;
+                    TorPort  = proxyScanData.tor_port;
+                    Delay = proxyScanData.delay;
+                    await ProxyScan(ProxyHost:proxyHost, ProxyPort:proxyPort);
                     break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
@@ -180,7 +216,7 @@ namespace AppEngine
 
             for (int i = 0; i < total; i++)
             {
-                wires.ShowProgress(i + 1, total, wordlists[i]);
+                wires.ShowProgress(i, total, wordlists[i]);
                 var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
@@ -196,7 +232,7 @@ namespace AppEngine
             var wires = new GlobalWires();
             for (int i = 0; i < wordlists.Length; i++)
             {
-                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
+                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
                 var result = await tlsScan.TlsScan(wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
@@ -212,7 +248,7 @@ namespace AppEngine
             var mainScanOutput = new MainScanOutput();
             for (int i = 0; i < wordlists.Length; i++)
             {
-                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
+                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
                 var result = await normalScan.SendAsync(wordlists[i]);
                 mainScanOutput.Result.Add(result);
             }
@@ -229,11 +265,26 @@ namespace AppEngine
             for (int i = 0; i < wordlists.Length; i++)
             {
                 var result = await tlsScan.TlsScan(wordlists[i]);
-                wires.ShowProgress(i + 1, wordlists.Length, wordlists[i]);
+                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
                 mainScanOutput.Results.Add(result);
             }
             Logger.Done("Control Port TLS Scan Done.....");
             await wires.WriteToJsonAsync(mainScanOutput, JsonFilePath);
+        }
+        public async Task ProxyScan(string ProxyHost, int ProxyPort)
+        {
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var wires = new GlobalWires();
+            INetwork proxyScan = new ProxyScan(Target, Timeout, Delay, ProxyHost, ProxyPort, TorIP, TorPort);
+            var mainScan = new MainScanOutput();
+            for(int i = 0; i < wordlists.Length; i++)
+            {
+                var result = await proxyScan.SendAsync(wordlists[i]);
+                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
+                mainScan.Result.Add(result);
+            }
+            Logger.Done("[!] Proxy Scan is done lets goooo....");
+            await wires.WriteToJsonAsync(mainScan, JsonFilePath);
         }
     }
 }
