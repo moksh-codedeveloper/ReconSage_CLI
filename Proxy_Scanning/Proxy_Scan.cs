@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using Interface.Network;
 using ReconSageLogger;
 using ScanOutputModel;
@@ -31,19 +32,24 @@ namespace Proxy_Scan
             {
                 Proxy = new WebProxy(proxy_host, proxy_port),
                 UseProxy = true,
-                PooledConnectionLifetime = TimeSpan.FromMinutes(3)
+                PooledConnectionLifetime = TimeSpan.FromMinutes(3),
+                ConnectTimeout = TimeSpan.FromSeconds(10),
+                SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                {
+                    RemoteCertificateValidationCallback = (sender, cert, chain, errors) => true
+                }
             };
             client = new HttpClient(handler);
         }
 
         private async Task<ScanOutput> SendAsyncInternal(string domain, int retryCount = 0)
         {
-            
+
             Logger.Scan($"[!] Proxy Scan started on Target :- {Target}....");
-            if(retryCount >= 5)
+            if (retryCount >= 5)
             {
                 Logger.Error("You have hit a your max retries and i suppose you have exhaust them all");
-                return new ScanOutput{Message = "Max Retries hit"};
+                return new ScanOutput { Message = "Max Retries hit" };
             }
             var scan = new ScanOutput();
             var domainTarget = Target + domain;
@@ -64,7 +70,7 @@ namespace Proxy_Scan
                 {
                     Logger.Warn("[!]We have been detected we shall now change the proxy to the tor shall we");
                     client.Dispose();
-                    client = wires.BuildClient(proxyHost:TorIP, proxyPort:TorPort);
+                    client = wires.BuildClient(proxyHost: TorIP, proxyPort: TorPort);
                     Logger.Info($"Delay - {_jitterValue}");
                     await Task.Delay(_jitterValue);
                     Logger.Scan("[+] Lets restart the scan shall we");
@@ -75,15 +81,18 @@ namespace Proxy_Scan
                 scan.LatencyMS = sw.ElapsedMilliseconds;
                 scan.Headers = result.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
                 scan.Message = result.ReasonPhrase ?? string.Empty;
-            } catch(HttpRequestException ex)
+            }
+            catch (HttpRequestException ex)
             {
                 Logger.Error(ex.Message);
                 scan.Message = ex.Message;
-            } catch (TaskCanceledException ex)
+            }
+            catch (TaskCanceledException ex)
             {
                 Logger.Error($"{ex.Message} | Guess the task got cancelled");
                 scan.Message = ex.Message;
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 Logger.Error($"Exception is this :- {ex.Message}");
                 scan.Message = ex.Message;

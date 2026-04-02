@@ -276,6 +276,13 @@ namespace AppEngine
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var wires = new GlobalWires();
             INetwork proxyScan = new ProxyScan(Target, Timeout, Delay, ProxyHost, ProxyPort, TorIP, TorPort);
+            Logger.Scan("Before main_scan :- proxy_health initiating...");
+            var IsProxyAlive = await wires.IsProxyWorking(host:ProxyHost, port:ProxyPort, Timeout:Timeout);
+            if (!IsProxyAlive)
+            {
+                Logger.Error("proxy_health resulted in conclusion that  proxy is dead or not working properly recon_sage signing off");
+                return;
+            }
             var mainScan = new MainScanOutput();
             for(int i = 0; i < wordlists.Length; i++)
             {

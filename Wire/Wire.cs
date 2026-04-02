@@ -1,6 +1,7 @@
 using ReconSageLogger;
 using ScanOutputModel;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -175,6 +176,56 @@ namespace Wire
                 PooledConnectionLifetime = TimeSpan.FromMinutes(3)
             };
             return new HttpClient(handler);
+        }
+        public async Task<bool> IsProxyOpen(string host, int port, int Timeout)
+        {
+            try
+            {
+                using (var tcp = new TcpClient())
+                {
+                    var connectTask = tcp.ConnectAsync(host, port);
+                    var delayTask = Task.Delay(Timeout);
+                    var completedTask = await Task.WhenAny(connectTask, delayTask);
+                    return completedTask == connectTask && tcp.Connected;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public async Task<bool> IsProxyWorking(string host, int port, int Timeout)
+        {
+            var isProxyOpen = await IsProxyOpen(host, port, Timeout);
+            if (!isProxyOpen)
+            {
+                Logger.Error("[!]Proxy you have passed is not open so don't use it if you don't mind taking my advice");
+                return false;
+            }
+            else
+            {
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
+                    using var handler = new SocketsHttpHandler
+                    {
+                        Proxy = new WebProxy(host, port),
+                        UseProxy = true,
+                        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+                        {
+                            RemoteCertificateValidationCallback = (sender, cert, chain, errors) => true
+                        }
+                    };
+                    using var client = new HttpClient(handler);
+                    var request = new HttpRequestMessage(HttpMethod.Get, "https://httpbin.org/ip");
+                    var result = await client.SendAsync(request, cts.Token);
+                    return result.IsSuccessStatusCode;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
         }
     }
 }
