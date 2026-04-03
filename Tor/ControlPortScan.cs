@@ -141,9 +141,6 @@ namespace ControlPortUse
                     Logger.Warn($"Control port team reporting we are detected :- {domain}");
                     HeaderDisguise.Apply(request);
                     Logger.Info("Headers changed");
-                    Logger.Rotate("Commencing the Tor Circuits Rotation now");
-                    await tor.RotateAsync();
-                    Logger.Done("Tor circuits rotated...");
                     Logger.Info($"Delay :- {_jitterMinValue}ms");
                     await Task.Delay(_jitterMinValue);
                     Logger.Scan("Resuming the scan now with new tor circuits.....");

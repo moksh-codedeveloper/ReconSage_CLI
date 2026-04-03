@@ -18,6 +18,8 @@ using NormalTorScan;
 using ControlPortUse;
 using ReconSageLogger;
 using Proxy_Scan;
+using ITor;
+using TorRotator;
 
 namespace AppEngine
 {
@@ -44,7 +46,7 @@ namespace AppEngine
             switch (args[0])
             {
                 case "--waf-analysis":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -64,7 +66,7 @@ namespace AppEngine
                     waf1.PrintResultInvestigation(result);
                     break;
                 case "--rate-limit":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -80,7 +82,7 @@ namespace AppEngine
                     new RateLimit().PrintResult(rate);
                     break;
                 case "--sequential-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -97,7 +99,7 @@ namespace AppEngine
                     await RunSequentialScan();
                     break;
                 case "--tor-normal-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -117,7 +119,7 @@ namespace AppEngine
                     await NormalTorScan();
                     break;
                 case "--tls-normal-tor-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -137,7 +139,7 @@ namespace AppEngine
                     await TlsNormalTorScan();
                     break;
                 case "--control-port-normal-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -150,13 +152,15 @@ namespace AppEngine
                     Host = controlParsedModel.host;
                     CPPort = controlParsedModel.Port;
                     Password = controlParsedModel.Password;
+                    TorIP = controlParsedModel.tor_ip;   // ✅ add this
+                    TorPort = controlParsedModel.tor_port;
                     Delay = controlParsedModel.delay;
                     WordlistPath = controlParsedModel.WordlistPath;
                     JsonFilePath = controlParsedModel.JsonFilePath;
                     await ControlPortScan();
                     break;
                 case "--control-port-tls-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
@@ -169,18 +173,20 @@ namespace AppEngine
                     Host = controlTlsParsedModel.host;
                     CPPort = controlTlsParsedModel.Port;
                     Password = controlTlsParsedModel.Password;
+                    TorIP = controlTlsParsedModel.tor_ip;   // ✅ add this
+                    TorPort = controlTlsParsedModel.tor_port;
                     Delay = controlTlsParsedModel.delay;
                     WordlistPath = controlTlsParsedModel.WordlistPath;
                     JsonFilePath = controlTlsParsedModel.JsonFilePath;
                     await ControlPortTlsScan();
                     break;
                 case "--proxy-scan":
-                    if(args.Length < 2)
+                    if (args.Length < 2)
                     {
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
                     }
-                    IFileParser<RfoParsedModel>  fileParser = new RfoParser(args[1]);
+                    IFileParser<RfoParsedModel> fileParser = new RfoParser(args[1]);
                     RfoParsedModel proxyScanData = fileParser.ParseDictToModel();
                     Target = proxyScanData.Target;
                     Timeout = proxyScanData.Timeout;
@@ -189,9 +195,9 @@ namespace AppEngine
                     JsonFilePath = proxyScanData.JsonFilePath;
                     WordlistPath = proxyScanData.WordlistPath;
                     TorIP = proxyScanData.tor_ip;
-                    TorPort  = proxyScanData.tor_port;
+                    TorPort = proxyScanData.tor_port;
                     Delay = proxyScanData.delay;
-                    await ProxyScan(ProxyHost:proxyHost, ProxyPort:proxyPort);
+                    await ProxyScan(ProxyHost: proxyHost, ProxyPort: proxyPort);
                     break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
@@ -227,11 +233,18 @@ namespace AppEngine
         {
             Logger.Scan($"Initializing the Tls Normal Tor Scan on {Target}......");
             ITlsScan tlsScan = new TorScan(Target, Timeout, CPPort, TorPort, Password, Host, TorIP, Delay);
+            ITorController tor = new TorRotate(host:Host, password:Password, port:CPPort);
             var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
             var mainScanOutput = new MainTorScan();
             var wires = new GlobalWires();
             for (int i = 0; i < wordlists.Length; i++)
             {
+                if (i > 0 && i % 10 == 0)
+                {
+                    Logger.Rotate($"[~] Proactive circuit rotation at request {i}");
+                    await tor.RotateAsync();
+                    Logger.Done("Circuit rotated proactively");
+                }
                 wires.ShowProgress(i, wordlists.Length, wordlists[i]);
                 var result = await tlsScan.TlsScan(wordlists[i]);
                 mainScanOutput.Results.Add(result);
@@ -277,14 +290,14 @@ namespace AppEngine
             var wires = new GlobalWires();
             INetwork proxyScan = new ProxyScan(Target, Timeout, Delay, ProxyHost, ProxyPort, TorIP, TorPort);
             Logger.Scan("Before main_scan :- proxy_health initiating...");
-            var IsProxyAlive = await wires.IsProxyWorking(host:ProxyHost, port:ProxyPort, Timeout:Timeout);
+            var IsProxyAlive = await wires.IsProxyWorking(host: ProxyHost, port: ProxyPort, Timeout: Timeout);
             if (!IsProxyAlive)
             {
                 Logger.Error("proxy_health resulted in conclusion that  proxy is dead or not working properly recon_sage signing off");
                 return;
             }
             var mainScan = new MainScanOutput();
-            for(int i = 0; i < wordlists.Length; i++)
+            for (int i = 0; i < wordlists.Length; i++)
             {
                 var result = await proxyScan.SendAsync(wordlists[i]);
                 wires.ShowProgress(i, wordlists.Length, wordlists[i]);
