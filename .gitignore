@@ -19,6 +19,7 @@ wordlist.txt
 # Mono auto generated files
 mono_crash.*
 *.txt
+!CMakeLists.txt
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
@@ -70,7 +71,7 @@ artifacts/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
-
+*.so
 # StyleCop
 StyleCopReport.xml
 *.rfo
@@ -170,7 +171,7 @@ AutoTest.Net/
 
 # Web workbench (sass)
 .sass-cache/
-
+build/
 # Installshield output folder
 [Ee]xpress/
 
