@@ -28,8 +28,9 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, string *o
     return size * nmemb;
 }
 
-static size_t HeaderCallback(void* contents, size_t size, size_t nmemb, string* output) {
-    output->append((char*)contents, size * nmemb);
+static size_t HeaderCallback(void *contents, size_t size, size_t nmemb, string *output)
+{
+    output->append((char *)contents, size * nmemb);
     return size * nmemb;
 }
 
@@ -108,3 +109,34 @@ public:
         return onionScanOuput;
     }
 };
+
+extern "C"
+{
+    OnionScanOutputStructure *scan(
+        char _target[256],
+        char _tor_ip[256],
+        char _host[256],
+        char _password[128],
+        char _wordlist_path[256],
+        char _json_file_name[800],
+        uint16_t _port,
+        uint16_t _tor_port,
+        int _timeout,
+        int _delay)
+    {
+        OnionScan *scanner = new OnionScan(
+            _target, _tor_ip, _host, _password,
+            _wordlist_path, _json_file_name,
+            _port, _tor_port, _timeout, _delay);
+        auto result = scanner->onionScan();
+        delete scanner;
+        if (!result)
+            return nullptr;
+        return result.release();
+    }
+
+    void free_scan(OnionScanOutputStructure *output)
+    {
+        delete output;
+    }
+}

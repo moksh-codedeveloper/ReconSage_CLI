@@ -11,7 +11,7 @@ add_library(reconsage SHARED
 
 find_package(CURL REQUIRED)
 target_link_libraries(reconsage PRIVATE CURL::libcurl)
-target_link_libraries(reconsage PRIVATE)
+
 
 set_target_properties(reconsage PROPERTIES
     OUTPUT_NAME "_cpp_module"
