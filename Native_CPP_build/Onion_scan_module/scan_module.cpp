@@ -86,7 +86,7 @@ public:
         string responseBody;
         curl_easy_setopt(curl, CURLOPT_URL, target);
         curl_easy_setopt(curl, CURLOPT_PROXY, tor_ip);
-        curl_easy_setopt(curl, CURLOPT_PROXYPORT, tor_port);
+        curl_easy_setopt(curl, CURLOPT_PROXYPORT, (long)tor_port);
         curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
@@ -104,6 +104,10 @@ public:
             onionScanOuput->response_headers = new char[responseHeaders.size() + 1];
             strcpy(onionScanOuput->response_headers, responseHeaders.c_str());
             strcpy(onionScanOuput->response_Body, responseBody.c_str());
+        }
+        if (res != CURLE_OK)
+        {
+            fprintf(stderr, "curl error: %s\n", curl_easy_strerror(res));
         }
         curl_easy_cleanup(curl);
         return onionScanOuput;
