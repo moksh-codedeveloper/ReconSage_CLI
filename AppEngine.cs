@@ -329,7 +329,7 @@ namespace AppEngine
 
         public async Task RunOnionScan()
         {
-            INetwork onionModule = new OnionScanModule(Target, Host, TorIP, WordlistPath, JsonFilePath, Password, CPPort, TorPort, Timeout, Delay);
+            INetwork onionModule = new OnionScanModule(Target, TorIP, WordlistPath, JsonFilePath, TorPort, Timeout, Delay);
             var scanResult = await onionModule.SendAsync("");
             Logger.Done("Scan Done.....");
             Console.WriteLine();

@@ -16,5 +16,5 @@ target_link_libraries(reconsage PRIVATE CURL::libcurl)
 set_target_properties(reconsage PROPERTIES
     OUTPUT_NAME "_cpp_module"
     PREFIX "parser"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../bin/Debug"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../bin/Debug/net10.0"
 )

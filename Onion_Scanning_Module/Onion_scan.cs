@@ -10,41 +10,40 @@ namespace OnionScan
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string target;
         public long statusCode;
-        public IntPtr response_headers; // char* = IntPtr
-        public IntPtr response_body;    // char* = IntPtr
+        public IntPtr response_headers; 
+        public IntPtr response_body;    
         public double latencyMs;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1024)]
+        public string errorMessage;
     }
 
     public class OnionScanModule : INetwork
     {
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr scan(string target, string tor_ip, string host, string password, string wordlist_path, string json_file_name, ushort tor_port, ushort port, int timeout, int delay);
+        private static extern IntPtr scan(string target, string tor_ip, string wordlist_path, string json_file_name, ushort tor_port, int timeout, int delay);
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void free_scan(IntPtr scan);
 
         private string Target;
         private string Tor_IP;
-        private string Host;
+        // private string Host;
         private string WordlistPath;
         private string JsonFilePath;
-        private string Password;
+        // private string Password;
         private int Timeout;
         private int Delay;
         private int Tor_port;
-        private int Port;
+        // private int Port;
 
-        public OnionScanModule(string target, string host, string tor_ip, string wordlist_path, string json_file_name, string password, int port, int tor_port, int timeout, int delay)
+        public OnionScanModule(string target, string tor_ip, string wordlist_path, string json_file_name, int tor_port, int timeout, int delay)
         {
             Target = target;
-            Host = host;
             Tor_IP = tor_ip;
             WordlistPath = wordlist_path;
             JsonFilePath = json_file_name;
             Timeout = timeout;
             Delay = delay;
             Tor_port = tor_port;
-            Port = port;
-            Password = password;
         }
         private Dictionary<string, string> ParseHeaders(string rawHeaders)
         {
@@ -64,20 +63,21 @@ namespace OnionScan
         }
         public async Task<ScanOutput> SendAsync(string domain)
         {
-            IntPtr scan_result = scan(Target, Tor_IP, Host, Password, WordlistPath, JsonFilePath, (ushort)Tor_port, (ushort)Port, Timeout, Delay);
+            var scanModel = new ScanOutput();
+            IntPtr scan_result = scan(Target, Tor_IP, WordlistPath, JsonFilePath, (ushort)Tor_port, Timeout, Delay);
             if (scan_result == IntPtr.Zero) throw new Exception("Onion scan failed");
             OnionModule onion = Marshal.PtrToStructure<OnionModule>(scan_result);
             string headers = Marshal.PtrToStringAnsi(onion.response_headers) ?? "";
-
-            free_scan(scan_result);
-            return new ScanOutput
+            scanModel.Target = Target;
+            scanModel.StatusCode = (int)onion.statusCode;
+            scanModel.LatencyMS = onion.latencyMs;
+            scanModel.Headers = ParseHeaders(headers);
+            if(onion.errorMessage != "" || onion.errorMessage.Length != 0)
             {
-                Target = Target,
-                StatusCode = (int)onion.statusCode,
-                Headers = ParseHeaders(headers),
-                Message = ((System.Net.HttpStatusCode)onion.statusCode).ToString(),
-                LatencyMS = onion.latencyMs
-            };
+                scanModel.Message = onion.errorMessage;
+            }
+            free_scan(scan_result);
+            return scanModel;
         }
     }
 }
