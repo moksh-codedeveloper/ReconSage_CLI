@@ -20,7 +20,6 @@ using ReconSageLogger;
 using Proxy_Scan;
 using ITor;
 using TorRotator;
-using OnionScan;
 
 namespace AppEngine
 {
@@ -200,25 +199,6 @@ namespace AppEngine
                     Delay = proxyScanData.delay;
                     await ProxyScan(ProxyHost: proxyHost, ProxyPort: proxyPort);
                     break;
-                case "--onion-scan":
-                    if (args.Length < 2)
-                    {
-                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
-                        break;
-                    }
-                    IFileParser<RfoParsedModel> onionScan = new RfoParser(args[1]);
-                    RfoParsedModel onionScanModule = onionScan.ParseDictToModel();
-                    Target = onionScanModule.Target;
-                    Timeout = onionScanModule.Timeout;
-                    Host = onionScanModule.host;
-                    CPPort = onionScanModule.Port;
-                    JsonFilePath = onionScanModule.JsonFilePath;
-                    WordlistPath = onionScanModule.WordlistPath;
-                    TorIP = onionScanModule.tor_ip;
-                    TorPort = onionScanModule.tor_port;
-                    Delay = onionScanModule.delay;
-                    await RunOnionScan();
-                    break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
@@ -325,15 +305,6 @@ namespace AppEngine
             }
             Logger.Done("[!] Proxy Scan is done lets goooo....");
             await wires.WriteToJsonAsync(mainScan, JsonFilePath);
-        }
-
-        public async Task RunOnionScan()
-        {
-            INetwork onionModule = new OnionScanModule(Target, TorIP, WordlistPath, JsonFilePath, TorPort, Timeout, Delay);
-            var scanResult = await onionModule.SendAsync("");
-            Logger.Done("Scan Done.....");
-            Console.WriteLine();
-            await new GlobalWires().WriteToJsonAsync<ScanOutput>(scanResult, JsonFilePath);
         }
     }
 }
