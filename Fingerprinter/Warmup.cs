@@ -1,74 +1,85 @@
-using System.Diagnostics;
-using ReconSageLogger;
+using System.Runtime.InteropServices;
 using ScanOutputModel;
 using Wire;
 
-namespace WarmUpScan
+namespace NormalScan
 {
-    public class Scan
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    internal struct ScanStruct
     {
-        private readonly string Target;
-        private readonly int Timeout;
-        private readonly int Concurrency;
-        private readonly HttpClient _client;
-        public Scan(string target, int timeout, int concurrency)
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 357)]
+        public string target;
+        public int status_code;
+        public IntPtr response_headers;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string reason_phrase;
+        public double latency_ms;
+    }
+
+    public class CppScan
+    {
+        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr CreateEngine(int timeout);
+
+        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr PerformScan(IntPtr res, string target, string path, string port);
+
+        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void DestroyResult(IntPtr res);
+
+        private string Target = string.Empty;
+        private int Timeout;
+        private int Delay;
+        private string WordlistPath = string.Empty;
+        private string port = string.Empty;
+
+        public CppScan(string target, int timeout, int delay, string wordlistPath, string Port)
         {
             Target = target;
             Timeout = timeout;
-            Concurrency = concurrency;
-            _client = new HttpClient();
+            Delay = delay;
+            WordlistPath = wordlistPath;
+            port = Port;
         }
-        public async Task<ScanOutput> DomainScan(string domain)
+
+        public async Task<ScanOutput> ExecScanCpp(string domain)
         {
-            ScanOutput scan = new ScanOutput();
-            string subDomainTarget = Target + domain;
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(Timeout));
-            var sw = Stopwatch.StartNew();
+            await Task.Delay(Delay);
+
+            // Engine create kiya
+            IntPtr engine = CreateEngine(Timeout);
+
+            // Scan perform kiya
+            IntPtr resultPtr = PerformScan(engine, Target, domain, port);
+
+            if (resultPtr == IntPtr.Zero) return new ScanOutput { Message = "Scan Failed" };
+
             try
             {
-                var result = await _client.GetAsync(subDomainTarget, cts.Token);
-                sw.Stop();
-                scan.Target = subDomainTarget;
-                scan.StatusCode = (int)result.StatusCode;
-                scan.Message = result.ReasonPhrase ?? string.Empty;
-                scan.Headers = result.Headers.ToDictionary(h => h.Key, h => string.Join(", ", h.Value));
-                scan.LatencyMS = sw.ElapsedMilliseconds;
-            }
-            catch (Exception ex)
-            {
-                sw.Stop();
-                Logger.Error($"Unexpected Error - {ex.Message}");
-                scan.Message = ex.Message;
-                scan.StatusCode = 0;
-                scan.Target = subDomainTarget;
-                scan.LatencyMS = sw.ElapsedMilliseconds;
-                scan.Headers = new Dictionary<string, string>();
-            }
-            return scan;
-        }
-        public async Task<MainScanOutput> RunSequentialSafeScan(string[] wordlists, int delayMs = 500)
-        {
-            Logger.Scan($"[!] Starting Sequential Scan :- {Target}.....");
-            var mainScan = new MainScanOutput();
-            var wires = new GlobalWires();
-            var _jitterValue = new Random().Next(delayMs, delayMs * 10);
-            for (int i = 0; i < wordlists.Length; i++)
-            {
-                await Task.Delay(delayMs);
-                wires.ShowProgress(i, wordlists.Length, wordlists[i]);
-                var result = await DomainScan(wordlists[i]);
-                if (wires.IsDetected((int)result.StatusCode))
+                // Unmanaged memory ko C# struct mein map kiya
+                ScanStruct scanResult = Marshal.PtrToStructure<ScanStruct>(resultPtr);
+                string orHeaders = Marshal.PtrToStringAnsi(scanResult.response_headers) ?? "";
+
+                // Dictionary transform
+                Dictionary<string, string> rlHeadears = new GlobalWires().ParseHeaders(orHeaders);
+
+                // ScanOutput model fill kiya
+                ScanOutput scanOutput = new ScanOutput
                 {
-                    Logger.Warn($"Detected at Directory :- {wordlists[i]}");
-                    Logger.Info($"Status code :- {(int)result.StatusCode}");
-                    Logger.Info($"Delay :- {_jitterValue}");
-                    await Task.Delay(_jitterValue);
-                    Logger.Scan($"Resuming the scan after wait :- {_jitterValue}ms");
-                }
-                mainScan.Result.Add(result);
+                    Target = scanResult.target,
+                    StatusCode = scanResult.status_code,
+                    Headers = rlHeadears,
+                    LatencyMS = scanResult.latency_ms,
+                    Message = scanResult.reason_phrase
+                };
+
+                return scanOutput; // Asli data return karo!
             }
-            Logger.Done("Sequential Scan Completed");
-            return mainScan;
+            finally
+            {
+                // Sabse important: C++ ki memory saaf karo (No leaks!)
+                DestroyResult(resultPtr);
+            }
         }
     }
 }

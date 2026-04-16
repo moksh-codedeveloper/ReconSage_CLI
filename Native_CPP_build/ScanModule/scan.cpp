@@ -33,14 +33,14 @@ public:
         tv.tv_usec = (timeout % 1000) * 1000;
     }
 
-    ScanEngineModel* normalScan(char target[256], char path[100])
+    ScanEngineModel* normalScan(char target[256], char path[100], char port[128])
     {
         ScanEngineModel* scan = new ScanEngineModel();
         snprintf(scan->target, sizeof(scan->target), "%s%s", target, path);
         struct addrinfo hints{}, *res;
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
-        if (getaddrinfo(target, "80", &hints, &res) != 0)
+        if (getaddrinfo(target, port, &hints, &res) != 0)
             return scan;
         
         int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -87,8 +87,8 @@ public:
 
 extern "C" {
     void* CreateEngine(int timeoutms){return new ScanEngine(timeoutms);}
-    ScanEngineModel* PerformScan(void* engine, char target[256], char path[100]){
-        return static_cast<ScanEngine*>(engine)->normalScan(target, path);
+    ScanEngineModel* PerformScan(void* engine, char target[256], char path[100], char port[128]){
+        return static_cast<ScanEngine*>(engine)->normalScan(target, path, port);
     }
     void DestroyResult(ScanEngineModel* res) {
         if (res) {

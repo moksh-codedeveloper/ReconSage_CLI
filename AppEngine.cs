@@ -10,7 +10,6 @@ using RateLimitAnalysis;
 using RateLimitDetector.Model;
 using IParser;
 using Wire;
-using WarmUpScan;
 using ResoModel;
 using TorConfigParser;
 using Interface.Network;
@@ -27,7 +26,6 @@ namespace AppEngine
     {
         private GlobalWires wires = new GlobalWires();
         private string Target = string.Empty;
-        private int Concurrency;
         private int Timeout;
         private int TorPort;
         private string TorIP = string.Empty;
@@ -80,23 +78,6 @@ namespace AppEngine
                     IAnalysis<RateLimitDetectionOutputModel> rateLimit = new RateLimit();
                     RateLimitDetectionOutputModel rate = await rateLimit.RunAnalysis(rlFilePath);
                     new RateLimit().PrintResult(rate);
-                    break;
-                case "--sequential-scan":
-                    if (args.Length < 2)
-                    {
-                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
-                        break;
-                    }
-
-                    IFileParser<RModel> fileParser1 = new RsoParser(args[1]);
-                    RModel rsoModel1 = fileParser1.ParseDictToModel();
-                    Target = rsoModel1.Target;
-                    Concurrency = rsoModel1.Concurrency;
-                    Timeout = rsoModel1.Timeout;
-                    JsonFilePath = rsoModel1.JsonFilePath;
-                    WordlistPath = rsoModel1.WordlistPath;
-                    Delay = rsoModel1.Delay;
-                    await RunSequentialScan();
                     break;
                 case "--tor-normal-scan":
                     if (args.Length < 2)
@@ -202,14 +183,6 @@ namespace AppEngine
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
-        }
-        public async Task RunSequentialScan()
-        {
-            var scan = new Scan(Target, Timeout, Concurrency);
-            var wires = new GlobalWires();
-            var wordlists = await wires.ProcessWordlist(WordlistPath);
-            var result = await scan.RunSequentialSafeScan(wordlists, Delay);
-            await wires.WriteToJsonAsync(result, JsonFilePath);
         }
         public async Task NormalTorScan()
         {

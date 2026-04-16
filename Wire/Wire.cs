@@ -46,6 +46,39 @@ namespace Wire
             }
             return false;
         }
+        public Dictionary<string, string> ParseHeaders(string rawHeaders)
+        {
+            var headerDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            if (string.IsNullOrWhiteSpace(rawHeaders))
+                return headerDict;
+
+            // 1. Raw string ko lines mein tod do (\r\n standard hai HTTP ke liye)
+            string[] lines = rawHeaders.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var line in lines)
+            {
+                // Status line ko skip karo (e.g., HTTP/1.1 200 OK)
+                if (line.StartsWith("HTTP/", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // 2. Pehla ':' dhoondo (Key aur Value ko alag karne ke liye)
+                int separatorIndex = line.IndexOf(':');
+                if (separatorIndex > 0)
+                {
+                    string key = line.Substring(0, separatorIndex).Trim();
+                    string value = line.Substring(separatorIndex + 1).Trim();
+
+                    // Duplicate keys handle karo (rare but possible)
+                    if (!headerDict.ContainsKey(key))
+                    {
+                        headerDict.Add(key, value);
+                    }
+                }
+            }
+
+            return headerDict;
+        }
         public bool isDecreasingLatency(List<double> LatencyList)
         {
             for (int i = 0; i < LatencyList.Count; i++)
