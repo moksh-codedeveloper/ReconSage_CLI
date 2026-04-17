@@ -79,6 +79,26 @@ namespace Wire
 
             return headerDict;
         }
+        public string SanitizeTarget(string inputUrl)
+        {
+            try
+            {
+                if (!inputUrl.StartsWith("http://") && !inputUrl.StartsWith("https://"))
+                {
+                    return inputUrl;
+                }
+                else
+                {
+                    Uri uri = new Uri(inputUrl);
+                    string host = uri.Host;
+                    return host;
+                }
+            }
+            catch (Exception)
+            {
+                return inputUrl;
+            }
+        }
         public bool isDecreasingLatency(List<double> LatencyList)
         {
             for (int i = 0; i < LatencyList.Count; i++)

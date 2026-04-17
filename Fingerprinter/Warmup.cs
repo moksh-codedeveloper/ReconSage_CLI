@@ -1,13 +1,14 @@
 using System.Runtime.InteropServices;
+using ReconSageLogger;
 using ScanOutputModel;
 using Wire;
 
 namespace NormalScan
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
     internal struct ScanStruct
     {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 357)]
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 360)]
         public string target;
         public int status_code;
         public IntPtr response_headers;
@@ -22,7 +23,7 @@ namespace NormalScan
         private static extern IntPtr CreateEngine(int timeout);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr PerformScan(IntPtr res, string target, string path, string port);
+        private static extern IntPtr PerformScan(IntPtr res, string target, string path, string port, ref bool cancelFlag);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void DestroyResult(IntPtr res);
@@ -30,40 +31,49 @@ namespace NormalScan
         private string Target = string.Empty;
         private int Timeout;
         private int Delay;
-        private string WordlistPath = string.Empty;
         private string port = string.Empty;
 
-        public CppScan(string target, int timeout, int delay, string wordlistPath, string Port)
+        public CppScan(string target, int timeout, int delay, string Port)
         {
             Target = target;
             Timeout = timeout;
             Delay = delay;
-            WordlistPath = wordlistPath;
             port = Port;
         }
 
         public async Task<ScanOutput> ExecScanCpp(string domain)
         {
-            await Task.Delay(Delay);
+            bool cancelFlag = false;
+            string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
+            var cts = new CancellationTokenSource();
+            cts.Token.Register(() =>
+            {
+                cancelFlag = true;
+                Console.WriteLine("[!] Signal sent to C++ Engine...");
+            });
+            Random jitter = new Random();
+            var value = jitter.Next(Delay, Delay * 100);
+            Logger.Info($"Delay in scan :- {value}");
+            await Task.Delay(value);
 
             // Engine create kiya
             IntPtr engine = CreateEngine(Timeout);
 
-            // Scan perform kiya
-            IntPtr resultPtr = PerformScan(engine, Target, domain, port);
+            string cleanPath = domain.StartsWith("/") ? domain : "/" + domain;
+            IntPtr resultPtr = PerformScan(engine, sanitizedTarget, cleanPath, port, ref cancelFlag);
 
-            if (resultPtr == IntPtr.Zero) return new ScanOutput { Message = "Scan Failed" };
+            if (resultPtr == IntPtr.Zero)
+            {
+                Logger.Error("Scan has been either aborted or it has failed");
+                return new ScanOutput { Message = "Scan Failed" };
+            }
 
             try
             {
-                // Unmanaged memory ko C# struct mein map kiya
                 ScanStruct scanResult = Marshal.PtrToStructure<ScanStruct>(resultPtr);
                 string orHeaders = Marshal.PtrToStringAnsi(scanResult.response_headers) ?? "";
-
-                // Dictionary transform
                 Dictionary<string, string> rlHeadears = new GlobalWires().ParseHeaders(orHeaders);
 
-                // ScanOutput model fill kiya
                 ScanOutput scanOutput = new ScanOutput
                 {
                     Target = scanResult.target,
@@ -73,11 +83,10 @@ namespace NormalScan
                     Message = scanResult.reason_phrase
                 };
 
-                return scanOutput; // Asli data return karo!
+                return scanOutput;
             }
             finally
             {
-                // Sabse important: C++ ki memory saaf karo (No leaks!)
                 DestroyResult(resultPtr);
             }
         }

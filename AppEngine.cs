@@ -1,6 +1,4 @@
 using ScanOutputModel;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using ResoParser;
 using RfoModel;
 using FirewallAnalysis;
@@ -19,6 +17,7 @@ using ReconSageLogger;
 using Proxy_Scan;
 using ITor;
 using TorRotator;
+using NormalScan;
 
 namespace AppEngine
 {
@@ -180,6 +179,24 @@ namespace AppEngine
                     Delay = proxyScanData.delay;
                     await ProxyScan(ProxyHost: proxyHost, ProxyPort: proxyPort);
                     break;
+                case "--cpp-scan":
+                    if (args.Length < 2)
+                    {
+                        Logger.Error("Args length is too low pass the required fields and data which scanner needs");
+                        break;
+                    }
+                    IFileParser<RfoParsedModel> cppFileDataPipe = new RfoParser(args[1]);
+                    RfoParsedModel cppFileDataModule = cppFileDataPipe.ParseDictToModel();
+                    Target = cppFileDataModule.Target;
+                    Timeout = cppFileDataModule.Timeout;
+                    WordlistPath = cppFileDataModule.WordlistPath;
+                    JsonFilePath = cppFileDataModule.JsonFilePath;
+                    Delay = cppFileDataModule.delay;
+                    Logger.Info("Bhai port pass kar de pleaseeeee :- ");
+                    string port = Console.ReadLine() ?? string.Empty;
+                    string sanitizedPort = port.Trim(); // <-- SPACE AUR NEWLINE KHATAM!
+                    await CppScanModule(sanitizedPort);
+                    break;
                 default:
                     throw new Exception("Unknown argument type. Use --config-file or --args.");
             }
@@ -278,6 +295,22 @@ namespace AppEngine
             }
             Logger.Done("[!] Proxy Scan is done lets goooo....");
             await wires.WriteToJsonAsync(mainScan, JsonFilePath);
+        }
+
+        public async Task CppScanModule(string port)
+        {
+            Logger.Scan("C++ Module  testing started.....");
+            CppScan cppScan = new CppScan(target:Target, timeout:Timeout, Port:port, delay:Delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(WordlistPath);
+            var mainScan = new MainScanOutput();
+            for(int i = 0; i < wordlists.Length; i++)
+            {
+                new GlobalWires().ShowProgress(i, wordlists.Length, wordlists[i]);
+                var result = await cppScan.ExecScanCpp(wordlists[i]);
+                mainScan.Result.Add(result);
+            }
+            await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, JsonFilePath);
+            Logger.Done("Congrates Scanner is Working.....");
         }
     }
 }
