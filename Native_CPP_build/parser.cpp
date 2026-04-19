@@ -16,11 +16,12 @@ namespace RsoParser
         char host[256];
         char password[128];
         char tor_ip[256];
+        char proto_port[128];
 
-        uint16_t port;
+        uint16_t cp_port;
         uint16_t tor_port;
-        uint8_t timeout;
-        uint8_t delay;
+        int timeout;
+        int delay;
     };
 
     class Parser
@@ -197,7 +198,7 @@ namespace RsoParser
                         return nullptr;
                     }
                 }
-                if (key == "port")
+                if (key == "cp_port")
                 {
                     try
                     {
@@ -206,7 +207,7 @@ namespace RsoParser
                             delete fileParsed;
                             return nullptr;
                         }
-                        fileParsed->port = stoi(value);
+                        fileParsed->cp_port = stoi(value);
                     }
                     catch (...)
                     {
@@ -229,6 +230,14 @@ namespace RsoParser
                     {
                         delete fileParsed;
                         return nullptr;
+                    }
+                }
+                if (key == "proto_port")
+                {
+                    if (!value.empty())
+                    {
+                        strncpy(fileParsed->proto_port, value.c_str(), 127);
+                        fileParsed->proto_port[127] = '\0'; // Safety: ensure null-termination
                     }
                 }
             }

@@ -185,13 +185,13 @@ namespace AppEngine
                         Logger.Error("Args length is too low pass the required fields and data which scanner needs");
                         break;
                     }
-                    IFileParser<RfoParsedModel> cppFileDataPipe = new RfoParser(args[1]);
-                    RfoParsedModel cppFileDataModule = cppFileDataPipe.ParseDictToModel();
+                    IFileParser<RModel> cppFileDataPipe = new RsoParser(args[1]);
+                    RModel cppFileDataModule = cppFileDataPipe.ParseDictToModel();
                     Target = cppFileDataModule.Target;
                     Timeout = cppFileDataModule.Timeout;
                     WordlistPath = cppFileDataModule.WordlistPath;
                     JsonFilePath = cppFileDataModule.JsonFilePath;
-                    Delay = cppFileDataModule.delay;
+                    Delay = cppFileDataModule.Delay;
                     Logger.Info("Bhai port pass kar de pleaseeeee :- ");
                     string port = Console.ReadLine() ?? string.Empty;
                     string sanitizedPort = port.Trim(); // <-- SPACE AUR NEWLINE KHATAM!

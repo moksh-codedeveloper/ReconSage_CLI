@@ -5,15 +5,20 @@ using Wire;
 
 namespace NormalScan
 {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi, Pack = 1)]
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
     internal struct ScanStruct
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 360)]
         public string target;
+
         public int status_code;
-        public IntPtr response_headers;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 65536)]
+        public string response_headers; // Flat array, no pointer!
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string reason_phrase;
+
         public double latency_ms;
     }
 
@@ -23,6 +28,7 @@ namespace NormalScan
         private static extern IntPtr CreateEngine(int timeout);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        //now see here in args 
         private static extern IntPtr PerformScan(IntPtr res, string target, string path, string port, ref bool cancelFlag);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
@@ -71,7 +77,7 @@ namespace NormalScan
             try
             {
                 ScanStruct scanResult = Marshal.PtrToStructure<ScanStruct>(resultPtr);
-                string orHeaders = Marshal.PtrToStringAnsi(scanResult.response_headers) ?? "";
+                string orHeaders = scanResult.response_headers;
                 Dictionary<string, string> rlHeadears = new GlobalWires().ParseHeaders(orHeaders);
 
                 ScanOutput scanOutput = new ScanOutput

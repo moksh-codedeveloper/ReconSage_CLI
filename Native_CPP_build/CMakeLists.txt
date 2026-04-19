@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(reconsage SHARED
     parser.cpp
     rso_parser.cpp
-    Onion_scan_module/scan_module.cpp
 )
 
 find_package(CURL REQUIRED)
