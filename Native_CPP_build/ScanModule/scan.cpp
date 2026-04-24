@@ -160,10 +160,7 @@ public:
             }
             total_received += bytes;
         }
-
-        buff[total_received] = '\0';
-        strncpy(scan->response_headers, buff, sizeof(scan->response_headers) - 1);
-
+        auto end = chrono::high_resolution_clock::now();
         // 1. Better buffer handling after the loop
         if (total_received > 0)
         {
@@ -203,10 +200,12 @@ public:
         {
             // Agar total_received == 0, toh already -70 set hai (ya error code)
             if (scan->status_code == 0)
+            {
                 scan->status_code = -70;
+            }
         }
 
-        scan->latency_ms = chrono::duration<double, milli>(chrono::high_resolution_clock::now() - start).count();
+        scan->latency_ms = chrono::duration<double, milli>(end - start).count();
 
         if (is_https)
         {

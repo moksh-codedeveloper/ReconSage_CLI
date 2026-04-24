@@ -7,8 +7,6 @@ namespace ResoParser
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     internal struct CppRsoParserConfig
     {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-        public string target;
         public int timeout;  // timeout first
         public int delay;    // delay second
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
@@ -44,7 +42,6 @@ namespace ResoParser
             CppRsoParserConfig data = ParseViaModuleCpp();
             return new RModel
             {
-                Target = data.target,
                 Timeout = data.timeout,
                 JsonFilePath = data.json_file_name,
                 WordlistPath = data.wordlist_path,

@@ -5,11 +5,10 @@
 #include <arpa/inet.h>
 #include <memory>
 using namespace std;
-namespace RfoParser
+namespace RsoParser
 {
     struct parserModel
     {
-        char target[256];
         int timeout;
         int delay;
         char wordlist_path[800];
@@ -27,23 +26,6 @@ namespace RfoParser
             strcpy(_fileName, fileName);
         }
 
-        bool isValidUrl(const char *url)
-        {
-            if (!url || url[0] == '\0' || strlen(url) > 255)
-                return false;
-            if (strlen(url) > 255)
-                return false;
-            bool isHttp = strncmp(url, "http://", 7) == 0;
-            bool isHttps = strncmp(url, "https://", 8) == 0;
-            if (!isHttp && !isHttps)
-                return false;
-            const char *afterScheme = isHttps ? url + 8 : url + 7;
-            if (afterScheme[0] == '\0')
-                return false;
-            if (strchr(url, ' ') != nullptr)
-                return false;
-            return true;
-        }
         bool isJsonFile(const char *JsonFileName)
         {
             if (JsonFileName[0] == '\0' || strlen(JsonFileName) < 5 || strlen(JsonFileName) > 799)
@@ -98,14 +80,6 @@ namespace RfoParser
                 value.erase(value.find_last_not_of(" \t\r\n") + 1);
                 key.erase(0, key.find_first_not_of(" \t\r\n"));
                 key.erase(key.find_last_not_of(" \t\r\n") + 1);
-                if (key == "target")
-                {
-                    if (!isValidUrl(value.c_str()))
-                    {
-                        return nullptr;
-                    }
-                    strncpy(fileParseModel->target, value.c_str(), 255);
-                }
                 if (key == "timeout")
                 {
                     try
@@ -166,15 +140,15 @@ namespace RfoParser
 
 extern "C"
 {
-    RfoParser::parserModel *parse_config(const char *fileName)
+    RsoParser::parserModel *parse_config(const char *fileName)
     {
-        RfoParser::Parser p(const_cast<char *>(fileName));
+        RsoParser::Parser p(const_cast<char *>(fileName));
         auto result = p.FileParse();
         if (!result)
             return nullptr;
         return result.release();
     }
-    void free_module(RfoParser::parserModel *parsed_model)
+    void free_module(RsoParser::parserModel *parsed_model)
     {
         delete parsed_model;
     }
