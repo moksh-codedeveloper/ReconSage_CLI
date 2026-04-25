@@ -27,7 +27,7 @@ namespace ReconSageShell
     public class RecoShell
     {
         private bool _isRunning = true;
-        public void PrintBanner()
+        private void PrintBanner()
         {
             Console.Clear();
             Console.ForegroundColor = ConsoleColor.Cyan;
