@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Interface.Network;
 using ReconSageLogger;
 using ScanOutputModel;
 using Wire;
@@ -22,7 +23,7 @@ namespace NormalScan
         public double latency_ms;
     }
 
-    public class CppScan
+    public class CppScan : INetwork
     {
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr CreateEngine(int timeout);
@@ -47,7 +48,7 @@ namespace NormalScan
             port = Port;
         }
 
-        public async Task<ScanOutput> ExecScanCpp(string domain)
+        public async Task<ScanOutput> SendAsync(string domain)
         {
             bool cancelFlag = false;
             string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
