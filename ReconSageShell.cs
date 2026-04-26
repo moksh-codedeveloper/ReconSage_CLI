@@ -1,3 +1,4 @@
+using AllScansInOne;
 using IParser;
 using ReconSageLogger;
 using ResoModel;
@@ -62,11 +63,11 @@ namespace ReconSageShell
             Console.WriteLine("\n" + new string('-', 50) + "\n");
         }
 
-        public void Launch()
+        public async Task Launch()
         {
             PrintBanner();
             var sessionData = new SessionData();
-
+            var cts  = new CancellationTokenSource();
             while (_isRunning)
             {
                 // Custom prompt with Logger
@@ -76,10 +77,8 @@ namespace ReconSageShell
 
                 string input = Console.ReadLine()?.Trim() ?? "";
                 if (string.IsNullOrEmpty(input)) continue;
-
                 string[] parts = input.Split(' ');
                 string cmd = parts[0].ToLower();
-
                 try
                 {
                     switch (cmd)
@@ -97,14 +96,18 @@ namespace ReconSageShell
                             break;
 
                         case "start_scan_cpp":
-                            if (!sessionData.isRsoLoaded) { Logger.Warn("RSO data not loaded!"); break; }
+                            if (!sessionData.isRsoLoaded && !sessionData.isRfoLoaded) { Logger.Warn("RSO and RFO data not loaded!"); break; }
                             Logger.Scan("Initializing C++ Scan Module...");
-                            // Yahan apna C++ logic call karo
+                            await AllScans.ExecCppScan(target: sessionData.rfoParsed.Target, port: sessionData.rfoParsed.Proto_port,
+                            timeout: sessionData.RsoConfig.Timeout, delay: sessionData.RsoConfig.Delay,
+                            jsonFilePath: sessionData.RsoConfig.JsonFilePath,
+                            wordlistPath: sessionData.RsoConfig.WordlistPath, cts);
                             break;
 
                         case "start_tor_scan":
-                            if (!sessionData.isRfoLoaded) { Logger.Warn("RFO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded && !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
                             Logger.Scan("Initializing Tor Scan Module...");
+                            await AllScans.ExecTorScan(jsonFilePath: sessionData.RsoConfig.JsonFilePath, wordlistPath: sessionData.RsoConfig.WordlistPath, target: sessionData.rfoParsed.Target, Password: sessionData.rfoParsed.Password, TorIp: sessionData.rfoParsed.tor_ip, Port: sessionData.rfoParsed.Proto_port, TorPort: sessionData.rfoParsed.tor_port, CpTorPort: sessionData.rfoParsed.Port, Timeout: sessionData.RsoConfig.Timeout, Delay: sessionData.RsoConfig.Delay, cts);
                             break;
 
                         case "exit":

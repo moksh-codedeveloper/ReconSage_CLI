@@ -11,15 +11,11 @@ namespace RfoParser
     struct parser
     {
         char target[256];
-        char host[256];
         char password[128];
         char tor_ip[256];
         char proto_port[128];
-
         uint16_t cp_port;
         uint16_t tor_port;
-        int timeout;
-        int delay;
     };
 
     class Parser
@@ -51,24 +47,6 @@ namespace RfoParser
             struct sockaddr_in sa;
             int result = inet_pton(AF_INET, host, &sa.sin_addr);
             return result == 1;
-        }
-        bool isJsonFile(const char *JsonFileName)
-        {
-            if (JsonFileName[0] == '\0' || strlen(JsonFileName) < 5 || strlen(JsonFileName) > 799)
-                return false;
-            const char *dot = strrchr(JsonFileName, '.');
-            if (!dot)
-                return false;
-            return strcmp(dot, ".json") == 0;
-        }
-        bool isTextFile(const char *TextFileName)
-        {
-            if (TextFileName[0] == '\0' || !TextFileName || strlen(TextFileName) < 5 || strlen(TextFileName) > 799)
-                return false;
-            const char *dot = strrchr(TextFileName, '.');
-            if (!dot)
-                return false;
-            return strcmp(dot, ".txt") == 0;
         }
 
         bool isPasswordValid(const char *password)
@@ -128,15 +106,6 @@ namespace RfoParser
                         return nullptr;
                     }
                     strncpy(fileParsed->tor_ip, value.c_str(), 255);
-                }
-                else if (key == "host")
-                {
-                    if (!isIpAddress(value.c_str()))
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
-                    strncpy(fileParsed->host, value.c_str(), 255);
                 }
                 else if (key == "password")
                 {

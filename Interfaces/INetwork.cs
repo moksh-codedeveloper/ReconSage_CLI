@@ -4,7 +4,7 @@ namespace Interface.Network
 {
     public interface INetwork
     {
-        Task<ScanOutput> SendAsync(string Domain);
+        Task<ScanOutput> SendAsync(string Domain, CancellationToken ct);
     }
     public interface ITlsScan
     {

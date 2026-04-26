@@ -10,13 +10,16 @@ namespace TorConfigParser
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string target;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-        public string host;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string password;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string tor_ip;
-        public ushort port;
+
+        // Add this missing field from C++
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string proto_port;
+
+        public ushort cp_port; // Rename kiya match karne ke liye
         public ushort tor_port;
     }
 
@@ -53,11 +56,11 @@ namespace TorConfigParser
 
             RfoParsedModel parsedModel = new RfoParsedModel();
             parsedModel.Target = parsed.target;
-            parsedModel.Port = parsed.port;
-            parsedModel.host = parsed.host;
+            parsedModel.Port = parsed.cp_port;
             parsedModel.Password = parsed.password;
             parsedModel.tor_ip = parsed.tor_ip;
             parsedModel.tor_port = parsed.tor_port;
+            parsedModel.Proto_port = parsed.proto_port;
             return parsedModel;
         }
     }

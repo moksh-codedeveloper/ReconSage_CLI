@@ -42,7 +42,7 @@ namespace ScanOutputModel
         public string RawCertificateBase64 { get; set; } = string.Empty;
     }
 
-    public class MainTorScan
+    public class MainTlsTorScan
     {
         public List<TlsScanResult> Results { set; get; } = new();
     }

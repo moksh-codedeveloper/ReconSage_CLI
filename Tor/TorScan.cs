@@ -18,7 +18,7 @@ namespace TorScan
         public string reason_phrase;
         public double latency_ms;
     }
-    public class TorScan : INetwork
+    public class MainTorScan : INetwork
     {
         [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr CreateEngine(string target, string port, string tor_ip, string password, int tor_port, int cp_tor_port, int timeout);
@@ -44,7 +44,7 @@ namespace TorScan
         private int Timeout;
         private int Delay;
         private GlobalWires wires;
-        public TorScan(string _target, string _port, string _password, string _tor_ip, int _tor_port, int _cp_tor_port, int _timeout, int _delay)
+        public MainTorScan(string _target, string _port, string _password, string _tor_ip, int _tor_port, int _cp_tor_port, int _timeout, int _delay)
         {
             Target = _target;
             Password = _password;
@@ -57,35 +57,34 @@ namespace TorScan
             wires = new GlobalWires();
         }
 
-        public async Task<ScanOutput> SendAsync(string domain)
+        public async Task<ScanOutput> SendAsync(string domain, CancellationToken cts)
         {
-            var randomJitter =  new Random();
+            var randomJitter = new Random();
             var jitter = randomJitter.Next(Delay, Delay * 10);
             Logger.Info($"Delay :- {jitter}");
             await Task.Delay(jitter);
-            bool cancelFlag  = false;
+            bool cancelFlag = false;
             var scan = new ScanOutput();
             string sanitizedDomain = wires.SanitizeTarget(Target);
-            var cts = new CancellationTokenSource();
-            cts.Token.Register(() =>
+            cts.Register(() =>
             {
                 cancelFlag = true;
                 Logger.Info("Signal sent to C++ the cleanup will begin shortly");
             });
-            IntPtr engine = CreateEngine(target:Target, port:Port, tor_ip:TorIP, password:Password, tor_port:TorPort, cp_tor_port:CpTorPort, timeout:Timeout);
+            IntPtr engine = CreateEngine(target: Target, port: Port, tor_ip: TorIP, password: Password, tor_port: TorPort, cp_tor_port: CpTorPort, timeout: Timeout);
             string cleanPath = domain.StartsWith("/") ? domain : "/" + domain;
             IntPtr result = EngineScan(engine, cleanPath, ref cancelFlag, Target);
-            if(result == IntPtr.Zero)
+            if (result == IntPtr.Zero)
             {
                 Logger.Error("Got nullptr from the scan's main engine....");
-                return new ScanOutput{Message = "Result = NullPtr, Scan Operation failed"};
+                return new ScanOutput { Message = "Result = NullPtr, Scan Operation failed" };
             }
 
             try
             {
                 TorScanModel torScanModel = Marshal.PtrToStructure<TorScanModel>(result);
                 var oldHeaders = torScanModel.response_headers;
-                Dictionary<string,string> newHeaders = wires.ParseHeaders(oldHeaders);
+                Dictionary<string, string> newHeaders = wires.ParseHeaders(oldHeaders);
                 scan.Target = torScanModel.target;
                 scan.LatencyMS = torScanModel.latency_ms;
                 scan.StatusCode = torScanModel.status_code;

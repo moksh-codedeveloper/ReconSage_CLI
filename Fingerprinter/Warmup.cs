@@ -48,12 +48,11 @@ namespace NormalScan
             port = Port;
         }
 
-        public async Task<ScanOutput> SendAsync(string domain)
+        public async Task<ScanOutput> SendAsync(string domain, CancellationToken  cts)
         {
             bool cancelFlag = false;
             string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
-            var cts = new CancellationTokenSource();
-            cts.Token.Register(() =>
+            cts.Register(() =>
             {
                 cancelFlag = true;
                 Console.WriteLine("[!] Signal sent to C++ Engine...");
