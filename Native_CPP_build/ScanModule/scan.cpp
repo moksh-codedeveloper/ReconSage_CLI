@@ -165,7 +165,6 @@ public:
         if (total_received > 0)
         {
             buff[total_received] = '\0';
-            cout << "[DEBUG] Buff Start: " << string(buff, 100) << endl;
             // Safe copy to struct
             strncpy(scan->response_headers, buff, sizeof(scan->response_headers) - 1);
 
