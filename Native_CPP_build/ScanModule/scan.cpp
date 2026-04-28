@@ -90,34 +90,15 @@ public:
         }
 
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
         auto start = chrono::high_resolution_clock::now(); // <-- here
 
-        fcntl(sock, F_SETFL, O_NONBLOCK);
-        int ret = connect(sock, res->ai_addr, res->ai_addrlen);
-
-        if (ret < 0 && errno != EINPROGRESS)
+        if (connect(sock, res->ai_addr, res->ai_addrlen) < 0)
         {
-            scan->status_code = -40;
+            scan->status_code = -1;
             close(sock);
             freeaddrinfo(res);
             return scan;
         }
-
-        fd_set fdset;
-        FD_ZERO(&fdset);
-        FD_SET(sock, &fdset);
-
-        ret = select(sock + 1, nullptr, &fdset, nullptr, &tv);
-        if (ret <= 0)
-        {
-            scan->status_code = -40;
-            close(sock);
-            freeaddrinfo(res);
-            return scan;
-        }
-
-        fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) & ~O_NONBLOCK);
 
         bool is_https = (strcmp(port, "443") == 0);
         SSL *ssl = nullptr;
@@ -171,7 +152,7 @@ public:
             int bytes_to_read = (int)sizeof(buff) - total_received - 1;
             int bytes = (is_https) ? SSL_read(ssl, buff + total_received, bytes_to_read)
                                    : recv(sock, buff + total_received, bytes_to_read, 0);
-
+            if(bytes == 0)break;
             if (bytes < 0)
             {
                 int err = (is_https) ? SSL_get_error(ssl, bytes) : errno;
@@ -179,6 +160,15 @@ public:
                 break;
             }
             total_received += bytes;
+            buff[total_received] = '\0';
+
+            char *divider = strstr(buff, "\r\n\r\n");
+            if (divider != nullptr)
+            {
+                *(divider + 2) = '\0';
+                total_received = (divider - buff) + 2;
+                break; // headers done, stop reading body
+            }
         }
         auto end = chrono::high_resolution_clock::now();
         // 1. Better buffer handling after the loop
