@@ -7,6 +7,7 @@
 #include <chrono>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -89,15 +90,34 @@ public:
         }
 
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        auto start = chrono::high_resolution_clock::now();
+        setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+        auto start = chrono::high_resolution_clock::now(); // <-- here
 
-        if (connect(sock, res->ai_addr, res->ai_addrlen) < 0)
+        fcntl(sock, F_SETFL, O_NONBLOCK);
+        int ret = connect(sock, res->ai_addr, res->ai_addrlen);
+
+        if (ret < 0 && errno != EINPROGRESS)
         {
             scan->status_code = -40;
             close(sock);
             freeaddrinfo(res);
             return scan;
         }
+
+        fd_set fdset;
+        FD_ZERO(&fdset);
+        FD_SET(sock, &fdset);
+
+        ret = select(sock + 1, nullptr, &fdset, nullptr, &tv);
+        if (ret <= 0)
+        {
+            scan->status_code = -40;
+            close(sock);
+            freeaddrinfo(res);
+            return scan;
+        }
+
+        fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) & ~O_NONBLOCK);
 
         bool is_https = (strcmp(port, "443") == 0);
         SSL *ssl = nullptr;
