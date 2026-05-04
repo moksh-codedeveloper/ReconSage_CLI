@@ -100,7 +100,7 @@ public:
             return scan;
         }
 
-        bool is_https = (strcmp(port, "443") == 0);
+        bool is_https = (strcmp(port, "443") == 0 || strcmp(port, "https"));
         SSL *ssl = nullptr;
 
         if (is_https)
