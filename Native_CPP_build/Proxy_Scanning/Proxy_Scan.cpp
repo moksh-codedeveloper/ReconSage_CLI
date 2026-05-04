@@ -5,7 +5,8 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <vector>
-
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 using namespace std;
 
 class ProxyScan
@@ -15,6 +16,8 @@ private:
     char proxy_host[256];
     int proxy_port;
     char port[128];
+    SSL *proxy_ssl;
+    SSL_CTX *ctx;
 
 public:
     ProxyScan(char target[256], int _proxy_port, char host[256], char _port[128])
@@ -23,8 +26,16 @@ public:
         strncpy(proxy_host, host, 255);
         proxy_port = _proxy_port;
         strncpy(port, _port, 127);
+        SSL_library_init();
+        OpenSSL_add_all_algorithms();
+        SSL_load_error_strings();
+        ctx = SSL_CTX_new(TLS_client_method());
     }
-
+    ~ProxyScan()
+    {
+        if (ctx)
+            SSL_CTX_free(ctx);
+    }
     int SocksTunnel()
     {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -48,7 +59,8 @@ public:
             greeting.push_back(0x05); // socks version :- 5
             greeting.push_back(0x01); // cmd connect
             greeting.push_back(0x00); // rsv
-            greeting.push_back(0x03); // atyp :- IPv4
+            greeting.push_back(0x03);
+            greeting.push_back((uint8_t)target_len);
             for (int i = 0; i < target_len; i++)
             {
                 greeting.push_back(domain[i]);
@@ -158,10 +170,55 @@ public:
         snprintf(req, sizeof(req),
                  "CONNECT %s:%s HTTP/1.1\r\nHost: %s:%s\r\n\r\n",
                  domain, port, domain, port);
-        send(sock, req, sizeof(req), 0);
+        send(sock, req, strlen(req), 0);
 
         char response_headers[512] = {};
         recv(sock, response_headers, sizeof(response_headers), 0);
+
+        if (strstr(response_headers, "200") == nullptr)
+        {
+            cerr << "i think proxy is either denying or something else is going on with your proxy..." << endl;
+            close(sock);
+            return -1;
+        }
+        cout << "tunnnel is working and is connected ...." << endl;
+        return sock;
+    }
+
+    int HttpsTunnel()
+    {
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+
+        sockaddr_in addr{};
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(proxy_port);
+        inet_pton(AF_INET, proxy_host, &addr.sin_addr);
+        if (connect(sock, (sockaddr *)&addr, sizeof(addr)) < 0)
+        {
+            cerr << "CONNECTION TO PROXY FAILED....." << endl;
+            close(sock);
+            return -1;
+        }
+        proxy_ssl = SSL_new(ctx);
+        SSL_set_fd(proxy_ssl, sock);
+        SSL_set_tlsext_host_name(proxy_ssl, proxy_host);
+        char err_buff[1024];
+        if (SSL_connect(proxy_ssl) < 0)
+        {
+            ERR_error_string_n(ERR_get_error(), err_buff, sizeof(err_buff));
+            cerr << "your ssl connection didn't worked so far it seems so here is the error search it yourself :- " << err_buff << endl;
+            close(sock);
+            SSL_free(proxy_ssl);
+            return -1;
+        }
+        char req[512];
+        snprintf(req, sizeof(req),
+                 "CONNECT %s:%s HTTP/1.1\r\nHost: %s:%s\r\n\r\n",
+                 domain, port, domain, port);
+        SSL_write(proxy_ssl, req, strlen(req));
+
+        char response_headers[512] = {};
+        SSL_read(proxy_ssl, response_headers, sizeof(response_headers) - 1);
 
         if (strstr(response_headers, "200") == nullptr)
         {
@@ -189,5 +246,11 @@ extern "C"
     int HttpTunnel(void *engine)
     {
         return static_cast<ProxyScan *>(engine)->HttpProxy();
+    }
+    int HttpsProxy(void *engine){
+        return static_cast<ProxyScan *>(engine)->HttpsTunnel();
+    }
+    void DeleteEngine(void *engine){
+        delete static_cast<ProxyScan *>(engine);
     }
 }
