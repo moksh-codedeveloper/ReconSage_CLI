@@ -9,6 +9,12 @@
 #include <openssl/err.h>
 using namespace std;
 
+struct SSL_Tunnel
+{
+    int sock = -1;
+    SSL *proxySsl = nullptr;
+};
+
 class ProxyScan
 {
 private:
@@ -185,72 +191,74 @@ public:
         return sock;
     }
 
-    int HttpsTunnel()
+    SSL_Tunnel HttpsTunnel()
     {
-        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        SSL_Tunnel sslTunnel; // Initialized as {-1, nullptr}
 
+        // 1. Raw Socket create karo
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0)
+            return sslTunnel;
+
+        // 2. Proxy address setup (127.0.0.1:8080)
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
         addr.sin_port = htons(proxy_port);
         inet_pton(AF_INET, proxy_host, &addr.sin_addr);
+
+        // 3. Connect to Proxy
         if (connect(sock, (sockaddr *)&addr, sizeof(addr)) < 0)
         {
             cerr << "CONNECTION TO PROXY FAILED....." << endl;
             close(sock);
-            return -1;
+            return sslTunnel;
         }
+
+        // 4. SSL Handshake WITH PROXY
         proxy_ssl = SSL_new(ctx);
         SSL_set_fd(proxy_ssl, sock);
+
+        // [FIX]: Handshake proxy se ho raha hai, toh SNI bhi proxy ka hoga.
+        // Mitmproxy local hai toh ye proxy_host (127.0.0.1) hona chahiye.
         SSL_set_tlsext_host_name(proxy_ssl, proxy_host);
-        char err_buff[1024];
-        if (SSL_connect(proxy_ssl) < 0)
+
+        if (SSL_connect(proxy_ssl) <= 0)
         {
+            char err_buff[1024];
             ERR_error_string_n(ERR_get_error(), err_buff, sizeof(err_buff));
-            cerr << "your ssl connection didn't worked so far it seems so here is the error search it yourself :- " << err_buff << endl;
-            close(sock);
+            cerr << "Proxy SSL Handshake failed: " << err_buff << endl;
             SSL_free(proxy_ssl);
-            return -1;
+            close(sock);
+            return sslTunnel;
         }
+
+        // 5. Send CONNECT command THROUGH the Proxy SSL tunnel
+        // Target domain aur port (google.com:443) yahan jayega
         char req[512];
         snprintf(req, sizeof(req),
-                 "CONNECT %s:%s HTTP/1.1\r\nHost: %s:%s\r\n\r\n",
+                 "CONNECT %s:%s HTTP/1.1\r\n"
+                 "Host: %s:%s\r\n\r\n",
                  domain, port, domain, port);
-        SSL_write(proxy_ssl, req, strlen(req));
 
-        char response_headers[512] = {};
-        SSL_read(proxy_ssl, response_headers, sizeof(response_headers) - 1);
+        SSL_write(proxy_ssl, req, (int)strlen(req));
 
-        if (strstr(response_headers, "200") == nullptr)
+        // 6. Check if tunnel is established
+        char response[512] = {0};
+        int r = SSL_read(proxy_ssl, response, sizeof(response) - 1);
+
+        if (r <= 0 || strstr(response, "200") == nullptr)
         {
-            cerr << "i think proxy is either denying or something else is going on with your proxy..." << endl;
+            cerr << "Proxy denied CONNECT. Response: " << response << endl;
+            SSL_free(proxy_ssl);
             close(sock);
-            return -1;
+            return sslTunnel;
         }
+
         cout << "tunnnel is working and is connected ...." << endl;
-        return sock;
+
+        // Sab sahi hai, toh data bhar ke return karo
+        sslTunnel.sock = sock;
+        sslTunnel.proxySsl = proxy_ssl;
+        return sslTunnel;
     }
 };
-
-extern "C"
-{
-    void *CreateEngine(char domain[256], char port[128], char proxy_host[256], int proxy_port)
-    {
-        ProxyScan *proxyScan = new ProxyScan(domain, proxy_port, proxy_host, port);
-        return proxyScan;
-    }
-
-    int Socks5Tunnel(void *engine)
-    {
-        return static_cast<ProxyScan *>(engine)->SocksTunnel();
-    }
-    int HttpTunnel(void *engine)
-    {
-        return static_cast<ProxyScan *>(engine)->HttpProxy();
-    }
-    int HttpsProxy(void *engine){
-        return static_cast<ProxyScan *>(engine)->HttpsTunnel();
-    }
-    void DeleteEngine(void *engine){
-        delete static_cast<ProxyScan *>(engine);
-    }
-}
