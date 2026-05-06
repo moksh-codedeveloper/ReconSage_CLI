@@ -145,7 +145,7 @@ During the scan, live progress is printed to the terminal. When the scan complet
 - **.NET SDK** (for the C# shell)
 - **g++** with OpenSSL (`libssl-dev`)
 - **Tor** running locally (for `start_tor_scan`)
-
+- **CMake** Optional if you want generate shared library objects in C++ and don't want to use g++ or gcc
 ---
 
 ## Building the C++ Modules
@@ -156,7 +156,13 @@ Each scan engine compiles to a shared library:
 g++ -shared -fPIC -o ScanEngine.so ScanEngine.cpp -lssl -lcrypto
 g++ -shared -fPIC -o TorScan.so TorScan.cpp -lssl -lcrypto
 ```
-
+or you can also use CMake: 
+```bash
+mkdir build 
+cd build 
+cmake ..
+make
+```
 ---
 
 ## Commands
@@ -187,4 +193,4 @@ ReconSage is built out of curiosity and persistence.
 
 > *Never give up because of errors. If you want to build, you will figure it out.*
 
-**Stack:** C++ · C# · POSIX Sockets · OpenSSL · SOCKS5 · Tor · P/Invoke · Arch Linux
+**Stack:** C++ · C# · POSIX Sockets · OpenSSL · SOCKS5 · Tor · P/Invoke · Arch Linux · CMake
