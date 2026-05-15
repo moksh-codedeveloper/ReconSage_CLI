@@ -1,5 +1,7 @@
 #include "Proxy_Scan.cpp"
 #include <chrono>
+#include <iomanip>
+
 struct ProxyOutputModel
 {
     char full_target_path[2048];
@@ -83,12 +85,12 @@ public:
     ProxyOutputModel HttpsMainScan(char path[2048])
     {
         ProxyScan proxyScan(domain, proxy_port, proxy_host, port);
-        ProxyOutputModel proxyResult;
-        snprintf(proxyResult.full_target_path, sizeof(proxyResult.full_target_path), "%s%s", domain, path);
+        ProxyOutputModel proxyScanOutput;
+        snprintf(proxyScanOutput.full_target_path, sizeof(proxyScanOutput.full_target_path), "%s%s", domain, path);
         auto start = chrono::high_resolution_clock::now();
         SSL_Tunnel sessionData = proxyScan.HttpsTunnel();
         if (sessionData.sock == -1)
-            return proxyResult;
+            return proxyScanOutput;
         SSL *targetSSL = SSL_new(ctx);
         BIO *bio = BIO_new(BIO_f_ssl());
         BIO_set_ssl(bio, sessionData.proxySsl, BIO_NOCLOSE);
@@ -100,18 +102,18 @@ public:
             SSL_free(targetSSL);
             SSL_free(sessionData.proxySsl);
             close(sessionData.sock);
-            return proxyResult;
+            return proxyScanOutput;
         }
         char req[7168];
         int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s", path, domain, headers);
         int bytes_written = SSL_write(targetSSL, req, req_len);
         if (bytes_written <= 0)
         {
-            proxyResult.status_code = -60;
+            proxyScanOutput.status_code = -60;
             SSL_free(targetSSL);
             SSL_free(sessionData.proxySsl);
             close(sessionData.sock);
-            return proxyResult;
+            return proxyScanOutput;
         }
         else
         {
@@ -127,7 +129,7 @@ public:
                 if (bytes < 0)
                 {
                     int err = SSL_get_error(targetSSL, bytes);
-                    proxyResult.status_code = err;
+                    proxyScanOutput.status_code = err;
                     break;
                 }
                 total_received += bytes;
@@ -146,20 +148,80 @@ public:
             if (total_received > 0)
             {
                 buff[total_received] = '\0';
-                strncpy(proxyResult.response_headers, buff, sizeof(proxyResult.response_headers) - 1);
-                proxyResult.status_code = extract_status_from_buffer(buff);
+                strncpy(proxyScanOutput.response_headers, buff, sizeof(proxyScanOutput.response_headers) - 1);
+                proxyScanOutput.status_code = extract_status_from_buffer(buff);
                 char *line_end = strpbrk(buff, "\r\n");
                 if (line_end != nullptr)
                 {
                     *line_end = '\0';
-                    strncpy(proxyResult.reason_phrase, buff, sizeof(proxyResult.reason_phrase) - 1);
+                    strncpy(proxyScanOutput.reason_phrase, buff, sizeof(proxyScanOutput.reason_phrase) - 1);
                 }
             }
-            proxyResult.latency_ms = chrono::duration<double, milli>(end - start).count();
+            proxyScanOutput.latency_ms = chrono::duration<double, milli>(end - start).count();
         }
         SSL_free(targetSSL);
         close(sessionData.sock);
         SSL_free(sessionData.proxySsl);
-        return proxyResult;
+        return proxyScanOutput;
+    }
+
+    ProxyOutputModel HttpMainScan(char path[2048])
+    {
+        ProxyOutputModel proxyScanOutput;
+        ProxyScan proxyScan(domain, proxy_port, proxy_host, port);
+        snprintf(proxyScanOutput.full_target_path, sizeof(proxyScanOutput.full_target_path), "%s%s", domain, path);
+        auto start = chrono::high_resolution_clock::now();
+        int sock = proxyScan.HttpProxy();
+        char req[7168];
+        int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s", path, domain, headers);
+        int bytes_written = send(sock, req, req_len, 0);
+        if (bytes_written <= 0)
+        {
+            close(sock);
+            return proxyScanOutput;
+        }
+        else
+        {
+            char buff[65536];
+            int total_received = 0;
+            while (total_received < (int)sizeof(buff) - 1)
+            {
+                int bytes_to_read = (int)sizeof(buff) - total_received - 1;
+                int bytes = recv(sock, buff, sizeof(buff), 0);
+                if (bytes == 0)
+                    break;
+                if (bytes < 0)
+                {
+                    proxyScanOutput.status_code = -10;
+                    break;
+                }
+                total_received += bytes;
+                buff[total_received] = '\0';
+
+                char *divider = strstr(buff, "\r\n\r\n");
+                if (divider != nullptr)
+                {
+                    *(divider + 2) = '\0';
+                    total_received = (divider - buff) + 2;
+                    break;
+                }
+            }
+            auto end = chrono::high_resolution_clock::now();
+            if (total_received > 0)
+            {
+                buff[total_received] = '\0';
+                strncpy(proxyScanOutput.response_headers, buff, sizeof(proxyScanOutput.response_headers) - 1);
+                proxyScanOutput.status_code = extract_status_from_buffer(buff);
+                char *line_end = strpbrk(buff, "\r\n");
+                if (line_end != nullptr)
+                {
+                    *line_end = '\0';
+                    strncpy(proxyScanOutput.reason_phrase, buff, sizeof(proxyScanOutput.reason_phrase) - 1);
+                }
+            }
+            proxyScanOutput.latency_ms = chrono::duration<double, milli>(end - start).count();
+        }
+        close(sock);
+        return proxyScanOutput;
     }
 };
