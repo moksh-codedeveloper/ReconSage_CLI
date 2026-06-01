@@ -26,14 +26,11 @@ private:
     int proxy_port;
     int timeout;
     SSL_CTX *ctx;
-    struct timeval tv;
     char headers[6112];
 
 public:
     ProxyMainModule(char target[256], char _proxy_host[256], char _port[128], int _proxy_port, int _timeout, char header[6112])
     {
-        tv.tv_sec = _timeout / 1000;
-        tv.tv_usec = (_timeout % 1000) * 1000;
         strncpy(domain, target, 255);
         strncpy(proxy_host, _proxy_host, 255);
         strncpy(port, _port, 127);
@@ -84,7 +81,8 @@ public:
     }
     ProxyOutputModel HttpsMainScan(char path[2048])
     {
-        ProxyScan proxyScan(domain, proxy_port, proxy_host, port);
+        ProxyScan proxyScan(domain, proxy_port, proxy_host, port, timeout);
+
         ProxyOutputModel proxyScanOutput;
         snprintf(proxyScanOutput.full_target_path, sizeof(proxyScanOutput.full_target_path), "%s%s", domain, path);
         auto start = chrono::high_resolution_clock::now();
@@ -162,66 +160,6 @@ public:
         SSL_free(targetSSL);
         close(sessionData.sock);
         SSL_free(sessionData.proxySsl);
-        return proxyScanOutput;
-    }
-
-    ProxyOutputModel HttpMainScan(char path[2048])
-    {
-        ProxyOutputModel proxyScanOutput;
-        ProxyScan proxyScan(domain, proxy_port, proxy_host, port);
-        snprintf(proxyScanOutput.full_target_path, sizeof(proxyScanOutput.full_target_path), "%s%s", domain, path);
-        auto start = chrono::high_resolution_clock::now();
-        int sock = proxyScan.HttpProxy();
-        char req[7168];
-        int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s", path, domain, headers);
-        int bytes_written = send(sock, req, req_len, 0);
-        if (bytes_written <= 0)
-        {
-            close(sock);
-            return proxyScanOutput;
-        }
-        else
-        {
-            char buff[65536];
-            int total_received = 0;
-            while (total_received < (int)sizeof(buff) - 1)
-            {
-                int bytes_to_read = (int)sizeof(buff) - total_received - 1;
-                int bytes = recv(sock, buff, sizeof(buff), 0);
-                if (bytes == 0)
-                    break;
-                if (bytes < 0)
-                {
-                    proxyScanOutput.status_code = -10;
-                    break;
-                }
-                total_received += bytes;
-                buff[total_received] = '\0';
-
-                char *divider = strstr(buff, "\r\n\r\n");
-                if (divider != nullptr)
-                {
-                    *(divider + 2) = '\0';
-                    total_received = (divider - buff) + 2;
-                    break;
-                }
-            }
-            auto end = chrono::high_resolution_clock::now();
-            if (total_received > 0)
-            {
-                buff[total_received] = '\0';
-                strncpy(proxyScanOutput.response_headers, buff, sizeof(proxyScanOutput.response_headers) - 1);
-                proxyScanOutput.status_code = extract_status_from_buffer(buff);
-                char *line_end = strpbrk(buff, "\r\n");
-                if (line_end != nullptr)
-                {
-                    *line_end = '\0';
-                    strncpy(proxyScanOutput.reason_phrase, buff, sizeof(proxyScanOutput.reason_phrase) - 1);
-                }
-            }
-            proxyScanOutput.latency_ms = chrono::duration<double, milli>(end - start).count();
-        }
-        close(sock);
         return proxyScanOutput;
     }
 };

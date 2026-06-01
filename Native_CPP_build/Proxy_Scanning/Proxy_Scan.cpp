@@ -24,10 +24,12 @@ private:
     char port[128];
     SSL *proxy_ssl;
     SSL_CTX *ctx;
-
+    struct timeval tv;
 public:
-    ProxyScan(char target[256], int _proxy_port, char host[256], char _port[128])
+    ProxyScan(char target[256], int _proxy_port, char host[256], char _port[128], int timeout)
     {
+        tv.tv_sec = timeout / 1000;
+        tv.tv_usec = (timeout % 1000) * 1000;
         strncpy(domain, target, 255);
         strncpy(proxy_host, host, 255);
         proxy_port = _proxy_port;
@@ -54,6 +56,7 @@ public:
         {
             perror("Connection Error");
         }
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         char handshake[] = {0x05, 0x01, 0x00};
         char response[2];
         send(sock, handshake, 3, 0);
@@ -171,7 +174,7 @@ public:
             close(sock);
             return -1;
         }
-
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         char req[512];
         snprintf(req, sizeof(req),
                  "CONNECT %s:%s HTTP/1.1\r\nHost: %s:%s\r\n\r\n",
@@ -213,7 +216,7 @@ public:
             close(sock);
             return sslTunnel;
         }
-
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         // 4. SSL Handshake WITH PROXY
         proxy_ssl = SSL_new(ctx);
         SSL_set_fd(proxy_ssl, sock);
