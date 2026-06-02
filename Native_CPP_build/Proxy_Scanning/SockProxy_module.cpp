@@ -101,23 +101,17 @@ public:
     }
 };
 
-int main(){
-    char domain[] = "www.example.com";
-    char proxy_host[] = "127.0.0.1";
-    char port[] = "80";
-    int proxy_port = 1080;
-    char path[] = "/";
-    char headers[] = "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\r\n"
-                               "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*\r\n"
-                               "Sec-Ch-Ua: \"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"\r\n"
-                               "Sec-Ch-Ua-Platform: \"Windows\"\r\n"
-                               "Connection: close\r\n\r\n";
-    int timeout = 5000;
-    SocksScan scan(domain, port, proxy_host, headers, proxy_port, timeout);
-    SocksOutput result = scan.scan(path);
-    cout << "target :- " << result.domain << endl;
-    cout << "status code :- " << result.status_code << endl;
-    cout << "latency_ms :- " << result.latency_ms << endl;
-    cout << "reason phrase :- " << result.reason_phrase << endl;
-    cout << "headers :- " << result.response_headers << endl;
+extern "C" {
+    void *create(char *domain, char *proxy_host, char *proto_port, char *headers, int timeout, int proxy_port){
+        return new SocksScan(domain, proto_port, proxy_host, headers, proxy_port, timeout);
+    }
+
+    SocksOutput scan(char *path, void *engine){
+        return static_cast<SocksScan*>(engine)->scan(path);
+    }
+
+    void destroy(void *engine){
+        delete static_cast<SocksScan*>(engine);
+    }
 }
+
