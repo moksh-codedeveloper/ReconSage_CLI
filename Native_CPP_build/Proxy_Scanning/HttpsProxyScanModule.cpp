@@ -1,4 +1,5 @@
 #include "Proxy_Scan.cpp"
+#include "Http_Https_generic_modules/interface.cpp"
 #include <chrono>
 
 struct HttpsScanOutput

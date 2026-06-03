@@ -3,12 +3,8 @@
 #include<unistd.h>
 #include<openssl/ssl.h>
 #include<openssl/err.h>
+#include"scan_model.cpp"
 using namespace std;
-
-struct ScanOutput{
-    char domain[3072];
-    char headers[65536];
-};
 
 class GenericHttpsScan{
     private:

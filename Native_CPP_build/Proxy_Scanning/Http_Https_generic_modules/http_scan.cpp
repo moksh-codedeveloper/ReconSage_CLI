@@ -4,24 +4,19 @@
 #include<cstring>
 #include<cstdio>
 #include<unistd.h>
+#include"scan_model.cpp"
 using namespace std;
-
-struct generic_output{
-    char domain[3096];
-    char headers[65536];
-};
-
 class GenericHttpScan{
     private:
         char domain[256];
         char headers[8192];
     public:
-        GenericHttpScan(char _domain[256], char _proto_port[128], char _headers[8192], char _proxy_host[256], int _proxy_port, int _timeout){
+        GenericHttpScan(char _domain[256], char _headers[8192]){
             strncpy(domain, _domain, 256);
             strncpy(headers, _headers, 8192);
         }
-        generic_output http_scan(char path[2048], int &sock){
-            generic_output output;
+        ScanOutput http_scan(char path[2048], int &sock){
+            ScanOutput output;
             snprintf(output.domain, sizeof(output.domain), "%s%s", domain, path);
             char req[10240];
             int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s", path, domain, headers);
