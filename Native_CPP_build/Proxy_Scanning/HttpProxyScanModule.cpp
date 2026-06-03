@@ -23,13 +23,15 @@ class HttpProxyScan{
             char proto_port[128];
             char headers[5120];
             int proxy_port;
+            int timeout;
     public:
-        HttpProxyScan(char target[256], char _proxy_host[256], char port[128], int _proxy_port, char header[5120]){
+        HttpProxyScan(char target[256], char _proxy_host[256], char port[128], char header[5120], int _timeout, int _proxy_port){
             strncpy(domain, target, 256);
             strncpy(proxy_host, _proxy_host, 256);
             strncpy(proto_port, port, 128);
-            proxy_port = _proxy_port;
             strncpy(headers, header, 5120);
+            proxy_port = _proxy_port;
+            timeout = _timeout;
         }
 
         int extract_status_from_buffer(const char *buffer)                                                                                                                               
@@ -64,7 +66,7 @@ class HttpProxyScan{
 
         ProxyOutput scan(char path[2048]){
             ProxyOutput output;
-            ProxyScan proxyScan(domain, proxy_port, proxy_host, proto_port);
+            ProxyScan proxyScan(domain, proxy_port, proxy_host, proto_port, timeout);
             snprintf(output.domain, sizeof(output.domain), "%s%s", domain, path);
             auto start = chrono::high_resolution_clock::now();
             int sock = proxyScan.HttpProxy();
@@ -113,22 +115,3 @@ class HttpProxyScan{
         }
 };
 
-int main(){
-    char domain[] = "example.com";
-    char path[] = "/";
-    char proto_port[] = "80";
-    char proxy_host[] = "127.0.0.1";
-    int proxy_port = 8080;
-    char header[] = "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\r\n"
-                               "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*\r\n"
-                               "Sec-Ch-Ua: \"Chromium\";v=\"124\", \"Google Chrome\";v=\"124\"\r\n"
-                               "Sec-Ch-Ua-Platform: \"Windows\"\r\n"
-                               "Connection: close\r\n\r\n";
-    HttpProxyScan scan(domain, proxy_host, proto_port, proxy_port, header);
-    ProxyOutput outputResult = scan.scan(path);
-    cout << "target :- " << outputResult.domain << endl;
-    cout << "status code :- " << outputResult.status_code << endl;
-    cout << "latency_ms :- " << outputResult.latency_ms << endl;
-    cout << "headers :- " << outputResult.response_headers << endl;
-    return 0;
-}

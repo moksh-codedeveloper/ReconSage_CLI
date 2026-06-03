@@ -1,23 +1,16 @@
 #include "Proxy_Scan.cpp"
 #include <chrono>
-#include <iomanip>
 
-struct ProxyOutputModel
+struct HttpsScanOutput
 {
     char full_target_path[2048];
     char reason_phrase[128];
     char response_headers[65536];
     int status_code;
     double latency_ms;
-    ProxyOutputModel() : status_code(0), latency_ms(0)
-    {
-        memset(full_target_path, 0, sizeof(full_target_path));
-        memset(reason_phrase, 0, sizeof(reason_phrase));
-        memset(response_headers, 0, 65536);
-    }
 };
 
-class ProxyMainModule
+class HttpsProxyModule
 {
 private:
     char domain[256];
@@ -26,10 +19,10 @@ private:
     int proxy_port;
     int timeout;
     SSL_CTX *ctx;
-    char headers[6112];
+    char headers[5120];
 
 public:
-    ProxyMainModule(char target[256], char _proxy_host[256], char _port[128], int _proxy_port, int _timeout, char header[6112])
+    HttpsProxyModule(char target[256], char _proxy_host[256], char _port[128], int _proxy_port, int _timeout, char header[6112])
     {
         strncpy(domain, target, 255);
         strncpy(proxy_host, _proxy_host, 255);
@@ -43,7 +36,7 @@ public:
         ctx = SSL_CTX_new(TLS_client_method());
         SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
     }
-    ~ProxyMainModule()
+    ~HttpsProxyModule()
     {
         if (ctx)
             SSL_CTX_free(ctx);
@@ -79,11 +72,11 @@ public:
 
         return code;
     }
-    ProxyOutputModel HttpsMainScan(char path[2048])
+    HttpsScanOutput HttpsMainScan(char path[2048])
     {
         ProxyScan proxyScan(domain, proxy_port, proxy_host, port, timeout);
 
-        ProxyOutputModel proxyScanOutput;
+        HttpsScanOutput proxyScanOutput;
         snprintf(proxyScanOutput.full_target_path, sizeof(proxyScanOutput.full_target_path), "%s%s", domain, path);
         auto start = chrono::high_resolution_clock::now();
         SSL_Tunnel sessionData = proxyScan.HttpsTunnel();
@@ -163,3 +156,19 @@ public:
         return proxyScanOutput;
     }
 };
+
+extern "C" {
+    void *create(char *domain, char *proto_port, char *proxy_host, char *headers, int proxy_port, int timeout){
+        return new HttpsProxyModule(domain, proxy_host, proto_port, proxy_port, timeout, headers);
+    }
+
+    HttpsScanOutput scan(char *path, void *engine){
+        return static_cast<HttpsProxyModule*>(engine)->HttpsMainScan(path);
+    }
+
+    void destroy(void *engine){
+        delete static_cast<HttpsProxyModule*>(engine);
+    }
+}
+
+
