@@ -6,7 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(OpenSSL REQUIRED)
 
 add_library(reconsage SHARED
-    Proxy_Scan.cpp
+    HttpProxyScanModule.cpp
+    HttpsProxyScanModule.cpp
+    SockProxy_module.cpp
 )
 
 target_link_libraries(reconsage PRIVATE OpenSSL::SSL OpenSSL::Crypto)

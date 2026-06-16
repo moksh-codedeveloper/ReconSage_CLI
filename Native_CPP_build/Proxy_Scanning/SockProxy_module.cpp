@@ -90,15 +90,15 @@ public:
 };
 
 extern "C" {
-    void *create(char *domain, char *proxy_host, char *proto_port, char *headers, int timeout, int proxy_port){
+    void *socks_create(char *domain, char *proxy_host, char *proto_port, char *headers, int timeout, int proxy_port){
         return new SocksScan(domain, proto_port, proxy_host, headers, proxy_port, timeout);
     }
 
-    ProxyScanOutputModel scan(char *path, void *engine){
+    ProxyScanOutputModel socks_scan(char *path, void *engine){
         return static_cast<SocksScan*>(engine)->scan(path);
     }
 
-    void destroy(void *engine){
+    void socks_destroy(void *engine){
         delete static_cast<SocksScan*>(engine);
     }
 }

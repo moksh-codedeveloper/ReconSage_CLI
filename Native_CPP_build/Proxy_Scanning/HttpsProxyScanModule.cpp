@@ -86,15 +86,15 @@ class HttpsScanModule{
 };
 
 extern "C"{
-    void *create(char domain[256], char proto_port[128], char proxy_host[256], char headers[8192], int timeout, int proxy_port){
+    void *https_create(char domain[256], char proto_port[128], char proxy_host[256], char headers[8192], int timeout, int proxy_port){
         return new HttpsScanModule(domain, proto_port, headers, proxy_host, proxy_port, timeout);
     }
 
-    ProxyScanOutputModel scan(char path[128], void *engine){
+    ProxyScanOutputModel https_scan(char path[128], void *engine){
         return static_cast<HttpsScanModule*>(engine)->scan(path);
     }
 
-    void destroy(void *engine){
+    void https_destroy(void *engine){
         delete static_cast<HttpsScanModule*>(engine);
     }
 }

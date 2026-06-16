@@ -92,15 +92,15 @@ class HttpProxyScan{
 };
 
 extern "C" {
-    void *create(char domain[256], char proto_port[128], char headers[8192], char proxy_host[256], int timeout, int proxy_port){
+    void *http_create(char domain[256], char proto_port[128], char headers[8192], char proxy_host[256], int timeout, int proxy_port){
         return new HttpProxyScan(domain, proto_port, headers, proxy_host, proxy_port, timeout);
     }
 
-    ProxyScanOutputModel scan(void *engine, char path[2048]){
+    ProxyScanOutputModel http_scan(void *engine, char path[2048]){
         return static_cast<HttpProxyScan*>(engine)->scan(path);
     }
 
-    void destroy(void *engine){
+    void http_engine_destroy(void *engine){
         delete static_cast<HttpProxyScan*>(engine);
     }
 }

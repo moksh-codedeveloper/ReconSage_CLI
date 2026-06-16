@@ -30,5 +30,3 @@ int extract_status_from_buffer(char buff[65536]){
         }
         return code;
 }
-
-
