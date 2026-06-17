@@ -2,6 +2,7 @@ using ReconSageLogger;
 using ScanOutputModel;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -279,6 +280,33 @@ namespace Wire
                     return false;
                 }
             }
+        }
+
+        public async Task<string> HeaderTextParser(string headersFile)
+        {
+            if (!File.Exists(headersFile))
+            {
+                Logger.Error("Your file doesn't exist");
+                return string.Empty;
+            }
+            StringBuilder cleanHeaders = new StringBuilder();
+            await foreach (string line in File.ReadLinesAsync(headersFile))
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                int colonIndex = line.IndexOf(':');
+                if(colonIndex > 0)
+                {
+                    string key = line.Substring(0 ,colonIndex).Trim();
+                    string value = line.Substring(colonIndex + 1).Trim();
+                    cleanHeaders.AppendLine($"{key} : {value}");
+                }
+            }
+            string parsedBuilderHeaders = cleanHeaders.ToString();
+            return parsedBuilderHeaders;
         }
     }
 }

@@ -5,6 +5,7 @@ using ResoModel;
 using ResoParser;
 using RfoModel;
 using TorConfigParser;
+using Wire;
 
 namespace ReconSageShell
 {
@@ -112,6 +113,9 @@ namespace ReconSageShell
                         case "start_http_proxy_scan":
                             if (!sessionData.isRfoLoaded && !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
                             Logger.Scan("Initializing Http Proxy Scan Module...");
+                            var wires = new GlobalWires();
+                            string headers = await wires.HeaderTextParser(sessionData.RsoConfig.HeadersFile);
+                            await AllScans.ExecHttpProxy(sessionData.rfoParsed.Target, sessionData.rfoParsed.Proto_port, sessionData.rfoParsed.tor_ip, headers, sessionData.RsoConfig.JsonFilePath, sessionData.RsoConfig.WordlistPath, sessionData.RsoConfig.Timeout, sessionData.RsoConfig.Delay, sessionData.rfoParsed.tor_port, cts);
                             break;
                         case "exit":
                             _isRunning = false;
