@@ -109,7 +109,10 @@ namespace ReconSageShell
                             Logger.Scan("Initializing Tor Scan Module...");
                             await AllScans.ExecTorScan(jsonFilePath: sessionData.RsoConfig.JsonFilePath, wordlistPath: sessionData.RsoConfig.WordlistPath, target: sessionData.rfoParsed.Target, Password: sessionData.rfoParsed.Password, TorIp: sessionData.rfoParsed.tor_ip, Port: sessionData.rfoParsed.Proto_port, TorPort: sessionData.rfoParsed.tor_port, CpTorPort: sessionData.rfoParsed.Port, Timeout: sessionData.RsoConfig.Timeout, Delay: sessionData.RsoConfig.Delay, cts);
                             break;
-
+                        case "start_http_proxy_scan":
+                            if (!sessionData.isRfoLoaded && !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Scan("Initializing Http Proxy Scan Module...");
+                            break;
                         case "exit":
                             _isRunning = false;
                             Logger.Done("ReconSage signing off.");
