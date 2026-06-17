@@ -13,6 +13,8 @@ namespace ResoParser
         public string wordlist_path;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
         public string json_file_name;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
+        public string headers_file;
     }
     public class RsoParser : IFileParser<RModel>
     {
@@ -46,6 +48,7 @@ namespace ResoParser
                 JsonFilePath = data.json_file_name,
                 WordlistPath = data.wordlist_path,
                 Delay = data.delay,
+                HeadersFile = data.headers_file
             };
         }
     }

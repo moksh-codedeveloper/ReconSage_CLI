@@ -13,6 +13,7 @@ namespace RsoParser
         int delay;
         char wordlist_path[800];
         char json_file_name[800];
+        char headers_file[800];
     };
 
     class Parser
@@ -130,6 +131,17 @@ namespace RsoParser
                     else
                     {
                         strncpy(fileParseModel->json_file_name, value.c_str(), 799);
+                    }
+                }
+                if (key == "headers_file")
+                {
+                    if (!isTextFile(value.c_str()))
+                    {
+                        return nullptr;
+                    }
+                    else
+                    {
+                        strncpy(fileParseModel->headers_file, value.c_str(), 799);
                     }
                 }
             }
