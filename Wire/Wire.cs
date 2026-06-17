@@ -286,7 +286,7 @@ namespace Wire
         {
             if (!File.Exists(headersFile))
             {
-                Logger.Error("Your file doesn't exist");
+                Logger.Error("Your headers file doesn't exist");
                 return string.Empty;
             }
             StringBuilder cleanHeaders = new StringBuilder();

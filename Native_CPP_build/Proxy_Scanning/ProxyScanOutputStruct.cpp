@@ -7,7 +7,7 @@ struct ProxyScanOutputModel
     double latency_ms;
 };
 
-int extract_status_from_buffer(char buff[65536])
+inline int extract_status_from_buffer(char buff[65536])
 {
     if (!buff)
     {

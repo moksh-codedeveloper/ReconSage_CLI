@@ -9,7 +9,7 @@ namespace HttpScan
     public class HttpProxyScan : INetwork
     {
         [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr http_engine(string domain, string proto_port, string headers, string proxy_host, int timeout, int proxy_port);
+        private static extern IntPtr http_create(string domain, string proto_port, string headers, string proxy_host, int timeout, int proxy_port);
 
         [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput http_scan(IntPtr res, string path, ref bool CancelFlag);
@@ -51,7 +51,7 @@ namespace HttpScan
             Logger.Info($"[+]Delay :- {value}");
             await Task.Delay(value);
             string sanitizeDomain = new GlobalWires().SanitizeTarget(Target);
-            IntPtr engine = http_engine(sanitizeDomain, ProtoPort, Headers, ProxyHost, Timeout, ProxyPort);
+            IntPtr engine = http_create(sanitizeDomain, ProtoPort, Headers, ProxyHost, Timeout, ProxyPort);
 
             CppScanOutput result = http_scan(engine, path, ref cancelFlag);
 
@@ -61,6 +61,7 @@ namespace HttpScan
             scanOutput.Message = result.reason_phrase;
             scanOutput.Target = result.domain;
             scanOutput.LatencyMS = result.latency_ms;
+            http_engine_destroy(engine);
             return scanOutput;
         }
     }

@@ -54,7 +54,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan" };
+            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan" };
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
