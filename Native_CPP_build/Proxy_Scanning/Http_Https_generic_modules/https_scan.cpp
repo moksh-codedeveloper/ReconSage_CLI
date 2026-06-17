@@ -22,7 +22,7 @@ class GenericHttpsScan{
             ScanOutput result;
             snprintf(result.domain, sizeof(result.domain), "%s%s", domain, path);
             char req[10240];
-            int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s", path, domain, headers);
+            int req_len = snprintf(req, sizeof(req), "GET %s HTTP/1.1\r\nHost: %s\r\n%s\r\n", path, domain, headers);
             int bytes_written = SSL_write(target_ssl, req, req_len);
             if(bytes_written <= 0){
                 SSL_free(target_ssl);
