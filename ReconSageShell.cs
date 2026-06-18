@@ -123,14 +123,6 @@ namespace ReconSageShell
                             string headers = await wires.HeaderTextParser(httpRso.HeadersFile);
                             await AllScans.ExecHttpProxy(httpRfo.Target, httpRfo.Proto_port, httpRfo.tor_ip, headers, httpRso.JsonFilePath, httpRso.WordlistPath, httpRso.Timeout, httpRso.Delay, httpRfo.tor_port, cts);
                             break;
-                        case "start_https_proxy_scan":
-                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
-                            Logger.Scan("Initializing Https Proxy Scan Module......");
-                            var rso = sessionData.RsoConfig!;
-                            var rfo = sessionData.rfoParsed!;
-                            string header_ = await wires.HeaderTextParser(rso.HeadersFile);
-                            await AllScans.ExecHttpsProxy(rfo.Target, rfo.Proto_port, rfo.tor_ip, header_, rso.JsonFilePath, rso.WordlistPath, rso.Timeout, rso.Delay, rfo.tor_port, cts);
-                            break;
                         case "exit":
                             _isRunning = false;
                             Logger.Done("ReconSage signing off.");

@@ -2,7 +2,8 @@ using System.Runtime.InteropServices;
 
 namespace Struct
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    // Remove Pack = 1 to allow natural 8-byte alignment match
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     internal struct CppScanOutput
     {
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 3072)]
@@ -15,7 +16,6 @@ namespace Struct
         public string reason_phrase;
 
         public int status_code;
-        public double latency_ms;
+        public double latency_ms; // Will now sit at the correct byte offset position
     }
-
 }

@@ -7,7 +7,6 @@ find_package(OpenSSL REQUIRED)
 
 add_library(reconsage SHARED
     HttpProxyScanModule.cpp
-    HttpsProxyScanModule.cpp
     SockProxy_module.cpp
 )
 
