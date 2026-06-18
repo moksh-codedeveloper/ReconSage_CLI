@@ -302,7 +302,7 @@ namespace Wire
                 {
                     string key = line.Substring(0 ,colonIndex).Trim();
                     string value = line.Substring(colonIndex + 1).Trim();
-                    cleanHeaders.AppendLine($"{key} : {value}");
+                    cleanHeaders.AppendLine($"{key}: {value}");
                 }
             }
             string parsedBuilderHeaders = cleanHeaders.ToString();
