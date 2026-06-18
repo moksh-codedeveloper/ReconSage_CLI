@@ -58,6 +58,7 @@ namespace HttpsProxyScan
             scanResult.Message = scan.reason_phrase;
             scanResult.Target = scan.domain;
             scanResult.LatencyMS = scan.latency_ms;
+            https_destroy(engine);
             return scanResult;
         }
     }
