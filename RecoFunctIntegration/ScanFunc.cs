@@ -1,4 +1,5 @@
 using HttpScan;
+using HttpsProxyScan;
 using Interface.Network;
 using NormalScan;
 using ScanOutputModel;
@@ -46,6 +47,20 @@ namespace AllScansInOne
             {
                 new GlobalWires().ShowProgress(it, wordlists.Length, wordlists[it]);
                 var result = await httpProxy.SendAsync(wordlists[it], cts.Token);
+                mainScan.Result.Add(result);
+            }
+            await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
+        }
+
+        public static async Task ExecHttpsProxy(string target, string proto_port, string proxy_host, string headers, string jsonFilePath, string wordlistPath, int timeout, int delay, int proxy_port, CancellationTokenSource cts)
+        {
+            var mainScan = new MainScanOutput();
+            INetwork httpsScan = new HttpsScan(target, proxy_host, proto_port, headers, timeout, proxy_port, delay);
+            var wordlists = await new GlobalWires().ProcessWordlist(wordlistPath);
+            for(int it = 0; it < wordlists.Length; it++)
+            {
+                new GlobalWires().ShowProgress(it, wordlists.Length, wordlists[it]);
+                var result = await httpsScan.SendAsync(wordlists[it], cts.Token);
                 mainScan.Result.Add(result);
             }
             await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);

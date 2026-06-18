@@ -54,7 +54,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan" };
+            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_https_proxy_scan" };
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -69,6 +69,7 @@ namespace ReconSageShell
             PrintBanner();
             var sessionData = new SessionData();
             var cts  = new CancellationTokenSource();
+            var wires = new GlobalWires();
             while (_isRunning)
             {
                 // Custom prompt with Logger
@@ -97,25 +98,38 @@ namespace ReconSageShell
                             break;
 
                         case "start_scan_cpp":
-                            if (!sessionData.isRsoLoaded && !sessionData.isRfoLoaded) { Logger.Warn("RSO and RFO data not loaded!"); break; }
+                            if (!sessionData.isRsoLoaded || !sessionData.isRfoLoaded) { Logger.Warn("RSO and RFO data not loaded!"); break; }
                             Logger.Scan("Initializing C++ Scan Module...");
-                            await AllScans.ExecCppScan(target: sessionData.rfoParsed.Target, port: sessionData.rfoParsed.Proto_port,
-                            timeout: sessionData.RsoConfig.Timeout, delay: sessionData.RsoConfig.Delay,
-                            jsonFilePath: sessionData.RsoConfig.JsonFilePath,
-                            wordlistPath: sessionData.RsoConfig.WordlistPath, cts);
+                            var cppRso = sessionData.RsoConfig!;
+                            var cppRfo = sessionData.rfoParsed!;
+                            await AllScans.ExecCppScan(target: cppRfo.Target, port: cppRfo.Proto_port,
+                            timeout: cppRso.Timeout, delay: cppRso.Delay,
+                            jsonFilePath: cppRso.JsonFilePath,
+                            wordlistPath: cppRso.WordlistPath, cts);
                             break;
 
                         case "start_tor_scan":
-                            if (!sessionData.isRfoLoaded && !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
                             Logger.Scan("Initializing Tor Scan Module...");
-                            await AllScans.ExecTorScan(jsonFilePath: sessionData.RsoConfig.JsonFilePath, wordlistPath: sessionData.RsoConfig.WordlistPath, target: sessionData.rfoParsed.Target, Password: sessionData.rfoParsed.Password, TorIp: sessionData.rfoParsed.tor_ip, Port: sessionData.rfoParsed.Proto_port, TorPort: sessionData.rfoParsed.tor_port, CpTorPort: sessionData.rfoParsed.Port, Timeout: sessionData.RsoConfig.Timeout, Delay: sessionData.RsoConfig.Delay, cts);
+                            var torRso = sessionData.RsoConfig!;
+                            var torRfo = sessionData.rfoParsed!;
+                            await AllScans.ExecTorScan(jsonFilePath: torRso.JsonFilePath, wordlistPath: torRso.WordlistPath, target: torRfo.Target, Password: torRfo.Password, TorIp: torRfo.tor_ip, Port: torRfo.Proto_port, TorPort: torRfo.tor_port, CpTorPort: torRfo.Port, Timeout: torRso.Timeout, Delay: torRso.Delay, cts);
                             break;
                         case "start_http_proxy_scan":
-                            if (!sessionData.isRfoLoaded && !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
                             Logger.Scan("Initializing Http Proxy Scan Module...");
-                            var wires = new GlobalWires();
-                            string headers = await wires.HeaderTextParser(sessionData.RsoConfig.HeadersFile);
-                            await AllScans.ExecHttpProxy(sessionData.rfoParsed.Target, sessionData.rfoParsed.Proto_port, sessionData.rfoParsed.tor_ip, headers, sessionData.RsoConfig.JsonFilePath, sessionData.RsoConfig.WordlistPath, sessionData.RsoConfig.Timeout, sessionData.RsoConfig.Delay, sessionData.rfoParsed.tor_port, cts);
+                            var httpRso = sessionData.RsoConfig!;
+                            var httpRfo = sessionData.rfoParsed!;
+                            string headers = await wires.HeaderTextParser(httpRso.HeadersFile);
+                            await AllScans.ExecHttpProxy(httpRfo.Target, httpRfo.Proto_port, httpRfo.tor_ip, headers, httpRso.JsonFilePath, httpRso.WordlistPath, httpRso.Timeout, httpRso.Delay, httpRfo.tor_port, cts);
+                            break;
+                        case "start_https_proxy_scan":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Scan("Initializing Https Proxy Scan Module......");
+                            var rso = sessionData.RsoConfig!;
+                            var rfo = sessionData.rfoParsed!;
+                            string header_ = await wires.HeaderTextParser(rso.HeadersFile);
+                            await AllScans.ExecHttpsProxy(rfo.Target, rfo.Proto_port, rfo.tor_ip, header_, rso.JsonFilePath, rso.WordlistPath, rso.Timeout, rso.Delay, rfo.tor_port, cts);
                             break;
                         case "exit":
                             _isRunning = false;
