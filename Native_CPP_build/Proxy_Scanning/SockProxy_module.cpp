@@ -1,13 +1,14 @@
-#include"Proxy_Scan.cpp"
-#include<chrono>
-#include"Http_Https_generic_modules/interface.cpp"
-#include"Http_Https_generic_modules/scan_model.cpp"
-#include"ProxyScanOutputStruct.cpp"
-#include<openssl/ssl.h>
-#include<openssl/err.h>
+#include "Proxy_Scan.cpp"
+#include <chrono>
+#include "Http_Https_generic_modules/interface.cpp"
+#include "Http_Https_generic_modules/scan_model.cpp"
+#include "ProxyScanOutputStruct.cpp"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 using namespace std;
 
-class SocksScan{
+class SocksScan
+{
 private:
     char domain[256];
     char proto_port[128];
@@ -17,8 +18,10 @@ private:
     int timeout;
     SSL_CTX *ctx;
     SSL *ssl;
+
 public:
-    SocksScan(char _domain[256], char _proto_port[128], char _proxy_host[256], char _headers[8192], int _proxy_port, int _timeout){
+    SocksScan(char _domain[256], char _proto_port[128], char _proxy_host[256], char _headers[8192], int _proxy_port, int _timeout)
+    {
 
         strncpy(domain, _domain, 256);
         strncpy(proto_port, _proto_port, 128);
@@ -30,58 +33,132 @@ public:
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
         ctx = SSL_CTX_new(TLS_client_method());
-
     }
 
-    ~SocksScan(){
-        if(ctx)
+    ~SocksScan()
+    {
+        if (ctx)
             SSL_CTX_free(ctx);
     }
 
-    ProxyScanOutputModel scan(char path[2048]){
+    ProxyScanOutputModel scan(char path[2048], bool *cancel_flag)
+    {
         ProxyScanOutputModel result;
+        if (cancel_flag && *cancel_flag)
+        {
+            return result;
+        }
         ScanOutput output;
         ProxyScan proxyScan(domain, proxy_port, proxy_host, proto_port, timeout);
         UnifiedScanInterface interface(domain, proto_port, headers);
         bool isHttps = (strcmp(proto_port, "https") == 0 || strcmp(proto_port, "443") == 0);
-
+        cout << "[DEBUG C++] Data dropping which came from the C#========" << endl;
+        cout << "[DEBUG C++] domain = " << domain << " proto_port = " << proto_port << "proxy_host = " << proxy_host << endl;
+        cout << "[DEBUG C++] headers = " << headers << endl;
+        cout << "[DEBUG C++]" << "Timeout = " << timeout << " proxy_port = " << proxy_port << endl;
         auto start = chrono::high_resolution_clock::now();
         int sock = proxyScan.SocksTunnel();
-        if(isHttps){
+        cout << "[DEBUG C++] sock = " << sock << endl;
+        if (isHttps)
+        {
             ssl = SSL_new(ctx);
             SSL_set_fd(ssl, sock);
             SSL_set_tlsext_host_name(ssl, domain);
-            if(SSL_connect(ssl) < 0){
+            if (SSL_connect(ssl) < 0)
+            {
+                cout << "Culprit found its ssl which is failing" << endl;
+                SSL_shutdown(ssl);
                 SSL_free(ssl);
                 close(sock);
                 return result;
             }
+            cout << "[DEBUG C++] SSL = " << ssl << endl;
+        }
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
         }
 
-        output = interface.scan(path, sock, ssl);
-
-        if(sock < 0){
-            if(isHttps){
-                if(ssl == nullptr){
+        if (sock < 0)
+        {
+            cout << "Culprit found its sock which is failing" << endl;
+            if (isHttps)
+            {
+                if (ssl == nullptr)
+                {
                     return result;
                 }
             }
             return result;
         }
+        output = interface.scan(path, sock, ssl);
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
+        }
         auto end = chrono::high_resolution_clock::now();
-
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
+        }
         strncpy(result.domain, output.domain, 3072);
         strncpy(result.headers, output.headers, 65536);
         result.status_code = extract_status_from_buffer(output.headers);
         result.latency_ms = chrono::duration<double, milli>(end - start).count();
-
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
+        }
         char *line_end = strpbrk(output.headers, "\r\n");
-
-        if(line_end != nullptr){
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
+        }
+        if (line_end != nullptr)
+        {
             *line_end = '\0';
             strncpy(result.reason_phrase, output.headers, sizeof(result.reason_phrase) - 1);
         }
-
+        if (cancel_flag && *cancel_flag)
+        {
+            if (isHttps)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+            }
+            close(sock);
+            return result;
+        }
         SSL_shutdown(ssl);
         SSL_free(ssl);
         close(sock);
@@ -89,17 +166,20 @@ public:
     }
 };
 
-extern "C" {
-    void *socks_create(char *domain, char *proxy_host, char *proto_port, char *headers, int timeout, int proxy_port){
+extern "C"
+{
+    void *socks_create(char *domain, char *proto_port, char *proxy_host, char *headers, int timeout, int proxy_port)
+    {
         return new SocksScan(domain, proto_port, proxy_host, headers, proxy_port, timeout);
     }
 
-    ProxyScanOutputModel socks_scan(char *path, void *engine){
-        return static_cast<SocksScan*>(engine)->scan(path);
+    ProxyScanOutputModel socks_scan(char *path, void *engine, bool *cancel_flag)
+    {
+        return static_cast<SocksScan *>(engine)->scan(path, cancel_flag);
     }
 
-    void socks_destroy(void *engine){
-        delete static_cast<SocksScan*>(engine);
+    void socks_destroy(void *engine)
+    {
+        delete static_cast<SocksScan *>(engine);
     }
 }
-

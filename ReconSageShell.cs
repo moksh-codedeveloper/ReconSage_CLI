@@ -54,7 +54,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_https_proxy_scan" };
+            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan" };
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -122,6 +122,14 @@ namespace ReconSageShell
                             var httpRfo = sessionData.rfoParsed!;
                             string headers = await wires.HeaderTextParser(httpRso.HeadersFile);
                             await AllScans.ExecHttpProxy(httpRfo.Target, httpRfo.Proto_port, httpRfo.tor_ip, headers, httpRso.JsonFilePath, httpRso.WordlistPath, httpRso.Timeout, httpRso.Delay, httpRfo.tor_port, cts);
+                            break;
+                        case "start_socks_proxy_scan" :
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Scan("Initializing Socks Proxy Scan Module....");
+                            var socksRso = sessionData.RsoConfig!;
+                            var socksRfo = sessionData.rfoParsed!;
+                            string socks_headers = await wires.HeaderTextParser(socksRso.HeadersFile);
+                            await AllScans.ExecSockProxy(socksRfo.Target, socksRfo.Proto_port, socksRfo.tor_ip, socks_headers, socksRso.JsonFilePath, socksRso.WordlistPath, socksRso.Timeout, socksRfo.tor_port, cts, socksRso.Delay);
                             break;
                         case "exit":
                             _isRunning = false;

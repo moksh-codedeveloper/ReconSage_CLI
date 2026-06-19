@@ -44,6 +44,7 @@ public:
         if (ctx)
             SSL_CTX_free(ctx);
     }
+    
     int SocksTunnel()
     {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -52,25 +53,31 @@ public:
         serv_addr.sin_port = htons(proxy_port);
         inet_pton(AF_INET, proxy_host, &serv_addr.sin_addr);
         size_t target_len = strlen(domain);
+        
         if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         {
             perror("Connection Error");
+            close(sock);
+            return -1;
         }
+        
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+        
         char handshake[] = {0x05, 0x01, 0x00};
         char response[2];
         send(sock, handshake, 3, 0);
         memset(response, 0, 2);
         recv(sock, response, 2, 0);
+        
         if (response[0] == 0x05 && response[1] == 0x00)
         {
             vector<uint8_t> greeting;
-            greeting.push_back(0x05); // socks version :- 5
-            greeting.push_back(0x01); // cmd connect
-            greeting.push_back(0x00); // rsv
-            greeting.push_back(0x03);
+            greeting.push_back(0x05); // SOCKS version 5
+            greeting.push_back(0x01); // CMD: CONNECT
+            greeting.push_back(0x00); // RSV
+            greeting.push_back(0x03); // ATYPE: Domain Name
             greeting.push_back((uint8_t)target_len);
-            for (int i = 0; i < target_len; i++)
+            for (size_t i = 0; i < target_len; i++)
             {
                 greeting.push_back(domain[i]);
             }
@@ -80,9 +87,11 @@ public:
 
             greeting.push_back(port_bytes[0]);
             greeting.push_back(port_bytes[1]);
+            
             uint8_t res[2];
             memset(res, 0, 2);
             send(sock, greeting.data(), greeting.size(), 0);
+            
             int total_received = 0;
             while (total_received < 2)
             {
@@ -91,76 +100,105 @@ public:
                     break;
                 total_received += bytes;
             }
+            
             if (res[0] == 0x05 && res[1] == 0x00)
             {
+                // ==================== FIX: STREAM DRAINER FOR TOR DYNAMIC RESPONSES ====================
+                uint8_t atype_block[2];
+                // RSV aur ATYPE fields read karo
+                recv(sock, atype_block, 2, 0); 
+                
+                uint8_t atype = atype_block[1];
+                int remaining_payload_size = 0;
+
+                if (atype == 0x01) {       // Tor returned an IPv4 map back
+                    remaining_payload_size = 4 + 2; 
+                } 
+                else if (atype == 0x03) {  // Tor returned a Domain layout tracking string back
+                    uint8_t domain_len = 0;
+                    recv(sock, &domain_len, 1, 0); 
+                    remaining_payload_size = domain_len + 2; 
+                } 
+                else if (atype == 0x04) {  // Tor returned IPv6 maps back
+                    remaining_payload_size = 16 + 2; 
+                }
+
+                // Pure residual network bytes flush operation
+                if (remaining_payload_size > 0) {
+                    vector<char> flush_buffer(remaining_payload_size);
+                    int bytes_drained = 0;
+                    while (bytes_drained < remaining_payload_size) {
+                        int r = recv(sock, flush_buffer.data() + bytes_drained, remaining_payload_size - bytes_drained, 0);
+                        if (r <= 0) break;
+                        bytes_drained += r;
+                    }
+                }
+                // =======================================================================================
                 return sock;
             }
             else if (res[0] == 0x05 && res[1] == 0x01)
             {
                 cout << "general SOCKS server failure" << endl;
-                cout << (int)res[0] << " " << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x02)
             {
                 cout << "connection not allowed by rulese" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x03)
             {
                 cout << "Network unreachable" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x04)
             {
                 cout << "Host unreachable " << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x05)
             {
                 cout << "Connection refused" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x06)
             {
                 cout << "TTL expired" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x07)
             {
                 cout << "Command not supported" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else if (res[0] == 0x05 && res[1] == 0x08)
             {
                 cout << "Address type not supported" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
-                return -1;
-            }
-            else if (res[0] == 0x05 && res[1] == 0x09)
-            {
-                cout << "to X’FF’ unassigned" << endl;
-                cout << (int)res[0] << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
             else
             {
-                cout << (int)res[0] << (int)res[1] << endl;
+                cout << "Unassigned error packet trace: " << (int)res[0] << " " << (int)res[1] << endl;
+                close(sock);
                 return -1;
             }
         }
         else
         {
-            cout << "[ERROR]" << "Your connection got refused or somethinng error happened" << (int)response[1] << endl;
+            cout << "[ERROR] Connection refused by proxy header layer checkpoint: " << (int)response[1] << endl;
+            close(sock);
             return -1;
         }
     }
+
     int HttpProxy()
     {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -196,20 +234,16 @@ public:
 
     SSL_Tunnel HttpsTunnel()
     {
-        SSL_Tunnel sslTunnel; // Initialized as {-1, nullptr}
-
-        // 1. Raw Socket create karo
+        SSL_Tunnel sslTunnel; 
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0)
             return sslTunnel;
 
-        // 2. Proxy address setup (127.0.0.1:8080)
         sockaddr_in addr{};
         addr.sin_family = AF_INET;
         addr.sin_port = htons(proxy_port);
         inet_pton(AF_INET, proxy_host, &addr.sin_addr);
 
-        // 3. Connect to Proxy
         if (connect(sock, (sockaddr *)&addr, sizeof(addr)) < 0)
         {
             cerr << "CONNECTION TO PROXY FAILED....." << endl;
@@ -217,12 +251,8 @@ public:
             return sslTunnel;
         }
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        // 4. SSL Handshake WITH PROXY
         proxy_ssl = SSL_new(ctx);
         SSL_set_fd(proxy_ssl, sock);
-
-        // [FIX]: Handshake proxy se ho raha hai, toh SNI bhi proxy ka hoga.
-        // Mitmproxy local hai toh ye proxy_host (127.0.0.1) hona chahiye.
         SSL_set_tlsext_host_name(proxy_ssl, proxy_host);
 
         if (SSL_connect(proxy_ssl) <= 0)
@@ -235,8 +265,6 @@ public:
             return sslTunnel;
         }
 
-        // 5. Send CONNECT command THROUGH the Proxy SSL tunnel
-        // Target domain aur port (google.com:443) yahan jayega
         char req[512];
         snprintf(req, sizeof(req),
                  "CONNECT %s:%s HTTP/1.1\r\n"
@@ -245,7 +273,6 @@ public:
 
         SSL_write(proxy_ssl, req, (int)strlen(req));
 
-        // 6. Check if tunnel is established
         char response[512] = {0};
         int r = SSL_read(proxy_ssl, response, sizeof(response) - 1);
 
@@ -259,7 +286,6 @@ public:
 
         cout << "tunnnel is working and is connected ...." << endl;
 
-        // Sab sahi hai, toh data bhar ke return karo
         sslTunnel.sock = sock;
         sslTunnel.proxySsl = proxy_ssl;
         return sslTunnel;
