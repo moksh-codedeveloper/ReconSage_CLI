@@ -3,57 +3,45 @@ using Interface.Network;
 using ReconSageLogger;
 using ScanOutputModel;
 using Wire;
+using Struct;
 
 namespace NormalScan
 {
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct ScanStruct
-    {
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 360)]
-        public string target;
-
-        public int status_code;
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 65536)]
-        public string response_headers; // Flat array, no pointer!
-
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
-        public string reason_phrase;
-
-        public double latency_ms;
-    }
-
     public class CppScan : INetwork
     {
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr CreateEngine(int timeout);
+        private static extern IntPtr create_engine(string path, string proto_port, int timeout, string headers);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         //now see here in args 
-        private static extern IntPtr PerformScan(IntPtr res, string target, string path, string port, ref bool cancelFlag);
+        private static extern CppScanOutput engine_scan(IntPtr engine, string path, ref bool cancelFlag);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void DestroyResult(IntPtr res);
+        private static extern void engine_destroy(IntPtr engine);
 
         private string Target = string.Empty;
         private int Timeout;
         private int Delay;
         private string port = string.Empty;
-
-        public CppScan(string target, int timeout, int delay, string Port)
+        private string Headers = string.Empty;
+        public CppScan(string target, int timeout, int delay, string Port, string headers)
         {
             Target = target;
             Timeout = timeout;
             Delay = delay;
             port = Port;
+            Headers = headers;
         }
 
-        public async Task<ScanOutput> SendAsync(string domain, CancellationToken  cts)
+        public async Task<ScanOutput> SendAsync(string path, CancellationToken  cts)
         {
+            var scanOutput = new ScanOutput();
+            IntPtr engine = create_engine(Target, port, Timeout, Headers);
             bool cancelFlag = false;
             string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
             cts.Register(() =>
             {
+                engine_destroy(engine);
                 cancelFlag = true;
                 Console.WriteLine("[!] Signal sent to C++ Engine...");
             });
@@ -62,39 +50,17 @@ namespace NormalScan
             Logger.Info($"Delay in scan :- {value}");
             await Task.Delay(value);
 
-            // Engine create kiya
-            IntPtr engine = CreateEngine(Timeout);
-
-            string cleanPath = domain.StartsWith("/") ? domain : "/" + domain;
-            IntPtr resultPtr = PerformScan(engine, sanitizedTarget, cleanPath, port, ref cancelFlag);
-
-            if (resultPtr == IntPtr.Zero)
-            {
-                Logger.Error("Scan has been either aborted or it has failed");
-                return new ScanOutput { Message = "Scan Failed" };
-            }
-
-            try
-            {
-                ScanStruct scanResult = Marshal.PtrToStructure<ScanStruct>(resultPtr);
-                string orHeaders = scanResult.response_headers;
-                Dictionary<string, string> rlHeadears = new GlobalWires().ParseHeaders(orHeaders);
-
-                ScanOutput scanOutput = new ScanOutput
-                {
-                    Target = scanResult.target,
-                    StatusCode = scanResult.status_code,
-                    Headers = rlHeadears,
-                    LatencyMS = scanResult.latency_ms,
-                    Message = scanResult.reason_phrase
-                };
-
-                return scanOutput;
-            }
-            finally
-            {
-                DestroyResult(resultPtr);
-            }
+            string cleanPath = path.StartsWith("/") ? path : "/" + path;
+            CppScanOutput resultPtr = engine_scan(engine, cleanPath, ref cancelFlag);
+            string resHeader = resultPtr.response_headers;
+            var headers = new GlobalWires().ParseHeaders(resHeader);
+            scanOutput.Headers = headers;
+            scanOutput.StatusCode = resultPtr.status_code;
+            scanOutput.Message = resultPtr.reason_phrase;
+            scanOutput.LatencyMS = resultPtr.latency_ms;
+            scanOutput.Target = resultPtr.domain;
+            engine_destroy(engine);
+            return scanOutput;
         }
     }
 }

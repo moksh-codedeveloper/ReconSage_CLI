@@ -102,7 +102,8 @@ namespace ReconSageShell
                             Logger.Scan("Initializing C++ Scan Module...");
                             var cppRso = sessionData.RsoConfig!;
                             var cppRfo = sessionData.rfoParsed!;
-                            await AllScans.ExecCppScan(target: cppRfo.Target, port: cppRfo.Proto_port,
+                            string cpp_headers = await wires.HeaderTextParser(cppRso.HeadersFile);
+                            await AllScans.ExecCppScan(target: cppRfo.Target, port: cppRfo.Proto_port, headers: cpp_headers,
                             timeout: cppRso.Timeout, delay: cppRso.Delay,
                             jsonFilePath: cppRso.JsonFilePath,
                             wordlistPath: cppRso.WordlistPath, cts);
