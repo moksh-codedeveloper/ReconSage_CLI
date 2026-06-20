@@ -1,4 +1,3 @@
-#include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
 #include <cstdio>
@@ -18,10 +17,10 @@ private:
     char headers[8192];
 
 public:
-    GenericInterface(char _domain[256], char _headers[65536], char _proto_port[128])
+    GenericInterface(char _domain[256], char _headers[8192], char _proto_port[128])
     {
         strncpy(domain, _domain, 256);
-        strncpy(headers, _headers, 65536);
+        strncpy(headers, _headers, 8192);
         strncpy(proto_port, _proto_port, 128);
     }
     GenericStruct interface_scan(char path[2048], bool *cancel_flag, int &sock, SSL *&ssl)
@@ -55,7 +54,8 @@ public:
         }
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
@@ -102,6 +102,16 @@ public:
         int total_recieved = 0;
         while (total_recieved < (int)sizeof(buff) - 1)
         {
+            if (cancel_flag && *cancel_flag)
+            {
+                if (isHttps)
+                {
+                    SSL_shutdown(ssl);
+                    SSL_free(ssl);
+                }
+                close(sock);
+                return GenericStruct();
+            }
             int bytes_to_read = (int)sizeof(buff) - total_recieved - 1;
             int bytes = (isHttps) ? recv(sock, buff + total_recieved, bytes_to_read, 0) : SSL_read(ssl, buff + total_recieved, bytes_to_read);
 
