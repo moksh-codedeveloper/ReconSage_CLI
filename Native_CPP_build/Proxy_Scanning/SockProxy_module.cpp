@@ -52,13 +52,8 @@ public:
         ProxyScan proxyScan(domain, proxy_port, proxy_host, proto_port, timeout);
         UnifiedScanInterface interface(domain, proto_port, headers);
         bool isHttps = (strcmp(proto_port, "https") == 0 || strcmp(proto_port, "443") == 0);
-        cout << "[DEBUG C++] Data dropping which came from the C#========" << endl;
-        cout << "[DEBUG C++] domain = " << domain << " proto_port = " << proto_port << "proxy_host = " << proxy_host << endl;
-        cout << "[DEBUG C++] headers = " << headers << endl;
-        cout << "[DEBUG C++]" << "Timeout = " << timeout << " proxy_port = " << proxy_port << endl;
         auto start = chrono::high_resolution_clock::now();
         int sock = proxyScan.SocksTunnel();
-        cout << "[DEBUG C++] sock = " << sock << endl;
         if (isHttps)
         {
             ssl = SSL_new(ctx);
@@ -66,13 +61,11 @@ public:
             SSL_set_tlsext_host_name(ssl, domain);
             if (SSL_connect(ssl) < 0)
             {
-                cout << "Culprit found its ssl which is failing" << endl;
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
                 close(sock);
                 return result;
             }
-            cout << "[DEBUG C++] SSL = " << ssl << endl;
         }
         if (cancel_flag && *cancel_flag)
         {
@@ -87,7 +80,6 @@ public:
 
         if (sock < 0)
         {
-            cout << "Culprit found its sock which is failing" << endl;
             if (isHttps)
             {
                 if (ssl == nullptr)

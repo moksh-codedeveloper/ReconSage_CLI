@@ -7,6 +7,7 @@
 #include "scan_model.cpp"
 #include <sstream>
 using namespace std;
+
 class GenericHttpScan
 {
 private:
@@ -24,20 +25,20 @@ public:
         ScanOutput output;
         memset(&output, 0, sizeof(output)); // Safely zero out struct memory
         snprintf(output.domain, sizeof(output.domain), "%s%s", domain, path);
-        std::string clean_headers(headers);
+        string clean_headers(headers);
 
         // 2. Look for explicit literal "\\r\\n" text strings if they snuck in from P/Invoke
         size_t pos;
-        while ((pos = clean_headers.find("\\r\\n")) != std::string::npos)
+        while ((pos = clean_headers.find("\\r\\n")) != string::npos)
         {
             clean_headers.replace(pos, 4, "\r\n");
         }
 
         // 3. Fix any lone '\n' characters that are missing a companion '\r'
-        std::string sanitized = "";
-        std::string line;
-        std::stringstream ss(clean_headers);
-        while (std::getline(ss, line))
+        string sanitized = "";
+        string line;
+        stringstream ss(clean_headers);
+        while (getline(ss, line))
         {
             // Strip off any existing trailing carriage returns, newlines, or spaces
             while (!line.empty() && (line.back() == '\r' || line.back() == '\n' || line.back() == ' '))
