@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <iostream>
 #include "../Generic_Module/interface_scan_module.cpp"
-#include "../Generic_Module/output_struct.cpp"
 
 using namespace std;
 

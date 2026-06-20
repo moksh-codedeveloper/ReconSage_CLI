@@ -1,4 +1,5 @@
 #include<cstring>
+#pragma once
 struct GenericStruct{
     char domain[3072];
     char headers[65536];
@@ -11,8 +12,6 @@ struct ScanOutputStruct{
     int status_code;
     double latency_ms;
 };
-
-
 inline int extract_status_from_buffer(char buff[65536])
 {
     if (!buff || buff[0] == '\0') return -1;

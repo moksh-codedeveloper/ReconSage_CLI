@@ -7,6 +7,8 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <chrono>
+#include<sstream>
+#include<string>
 using namespace std;
 
 class GenericInterface
