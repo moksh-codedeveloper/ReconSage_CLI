@@ -139,10 +139,10 @@ public:
             cout << "[WARNING C++] Bad status target match [" << status_code << "]. Resetting transport line..." << endl;
             if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); ssl = nullptr; }
             if (sock >= 0) { close(sock); sock = -1; }
-            
+            usleep(60000);
             // Trigger raw control circuit rotation
             TorRotation();
-            
+            usleep(10000);
             if (cancel_flag && *cancel_flag) return output;
 
             // FIX 1: Re-establish pristine tunnel connection and re-run query execution
