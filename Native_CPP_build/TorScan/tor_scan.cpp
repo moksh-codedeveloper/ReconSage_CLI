@@ -139,7 +139,6 @@ public:
             cout << "[WARNING C++] Bad status target match [" << status_code << "]. Resetting transport line..." << endl;
             if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); ssl = nullptr; }
             if (sock >= 0) { close(sock); sock = -1; }
-            usleep(60000);
             // Trigger raw control circuit rotation
             TorRotation();
             usleep(10000);
@@ -161,10 +160,9 @@ public:
                         return output;
                     }
                 }
-                // Re-execute scan over fresh circuit channel layout
-                result = interface.interface_scan(path, cancel_flag, sock, ssl);
-                status_code = extract_status_from_buffer(result.headers);
             }
+            result = interface.interface_scan(path, cancel_flag, sock, ssl);
+            status_code = extract_status_from_buffer(result.headers);
         }
 
         auto end = chrono::high_resolution_clock::now();
@@ -190,7 +188,7 @@ public:
 
 extern "C"
 {
-    void *create_engine(char domain[256], char tor_ip[256], char proto_port[128], char headers[8192], char password[8192], int tor_port, int cp_tor_port, int timeout)
+    void *create_engine(char domain[256], char proto_port[128], char headers[8192], char tor_ip[256], char password[8192], int timeout, int tor_port, int cp_tor_port)
     {
         return new Scan(domain, proto_port, headers, tor_ip, password, timeout, tor_port, cp_tor_port);
     }

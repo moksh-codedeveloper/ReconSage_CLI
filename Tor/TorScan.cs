@@ -4,21 +4,29 @@ using ReconSageLogger;
 using ScanOutputModel;
 using Wire;
 using Struct;
+
 namespace TorScan
 {
-
     public class MainTorScan : INetwork
     {
-        // FIX 2: Aligned parameters structure sequence with the C++ extern "C" create_engine exports
-        [DllImport("tor_cpp_module.so", EntryPoint = "create_engine", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr CreateEngine(string target, string tor_ip, string proto_port, string headers, string password, int tor_port, int cp_tor_port, int timeout);
+        // FIX 1: Exact byte-by-byte sequence matching with C++ extern "C" create_engine parameters
+        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr create_engine(
+            string domain,      // char domain[256]
+            string proto_port,  // char proto_port[128]
+            string headers,     // char headers[8192]
+            string tor_ip,      // char tor_ip[256]
+            string password,    // char password[8192]
+            int timeout,        // int timeout
+            int tor_port,       // int tor_port
+            int cp_tor_port     // int cp_tor_port
+        );
 
-        // FIX 3: Return the struct direct-copy from stack execution frame instead of dynamic IntPtr pointer addresses
-        [DllImport("tor_cpp_module.so", EntryPoint = "tor_scan_engine", CallingConvention = CallingConvention.Cdecl)]
-        private static extern CppScanOutput EngineScan(IntPtr engine, string path, ref bool cancelFlag);
+        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern CppScanOutput tor_scan_engine(string path, IntPtr engine, ref bool cancelFlag);
 
-        [DllImport("tor_cpp_module.so", EntryPoint = "destroy_tor_engine", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void DestroyEngine(IntPtr engine);
+        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void destroy_tor_engine(IntPtr engine);
 
         private string Target = string.Empty;
         private string Password = string.Empty;
@@ -49,7 +57,6 @@ namespace TorScan
             var jitter = randomJitter.Next(Delay, Delay * 10);
             Logger.Info($"Delay :- {jitter}");
             
-            // Safe pre-scan delay cancellation integration
             await Task.Delay(jitter, cts);
             
             bool cancelFlag = false;
@@ -63,8 +70,17 @@ namespace TorScan
             {
                 if (cts.IsCancellationRequested) return scan;
 
-                // Fire initialization allocation
-                IntPtr engine = CreateEngine(target: Target, tor_ip: TorIP, proto_port: Port, headers: "", password: Password, tor_port: TorPort, cp_tor_port: CpTorPort, timeout: Timeout);
+                // FIX 2: Sequenced values passed in precise order to match the DLL stack allocation layout
+                IntPtr engine = create_engine(
+                    domain: Target, 
+                    proto_port: Port, 
+                    headers: "", 
+                    tor_ip: TorIP, 
+                    password: Password, 
+                    timeout: Timeout, 
+                    tor_port: TorPort, 
+                    cp_tor_port: CpTorPort
+                );
                 
                 if (engine == IntPtr.Zero)
                 {
@@ -76,8 +92,7 @@ namespace TorScan
                 
                 try
                 {
-                    // FIX 4: Received Direct Struct payload directly mapped onto stack registers
-                    CppScanOutput torScanModel = EngineScan(engine, cleanPath, ref cancelFlag);
+                    CppScanOutput torScanModel = tor_scan_engine(cleanPath, engine, ref cancelFlag);
 
                     if (string.IsNullOrEmpty(torScanModel.domain) && torScanModel.status_code == 0)
                     {
@@ -101,8 +116,7 @@ namespace TorScan
                 }
                 finally
                 {
-                    // FIX 5: Single ownership destroy. Dropped old 'DestroyResult' because the struct lives on stack now!
-                    DestroyEngine(engine);
+                    destroy_tor_engine(engine);
                 }
                 
                 return scan;
