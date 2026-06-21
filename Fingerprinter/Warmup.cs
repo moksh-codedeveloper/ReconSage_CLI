@@ -13,7 +13,6 @@ namespace NormalScan
         private static extern IntPtr create_engine(string path, string proto_port, int timeout, string headers);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        //now see here in args 
         private static extern CppScanOutput engine_scan(IntPtr engine, string path, ref bool cancelFlag);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
@@ -24,6 +23,7 @@ namespace NormalScan
         private int Delay;
         private string port = string.Empty;
         private string Headers = string.Empty;
+
         public CppScan(string target, int timeout, int delay, string Port, string headers)
         {
             Target = target;
@@ -33,34 +33,60 @@ namespace NormalScan
             Headers = headers;
         }
 
-        public async Task<ScanOutput> SendAsync(string path, CancellationToken  cts)
+        public async Task<ScanOutput> SendAsync(string path, CancellationToken cts)
         {
             var scanOutput = new ScanOutput();
             IntPtr engine = create_engine(Target, port, Timeout, Headers);
+            
+            // Shared cancellation state across managed/unmanaged boundary
             bool cancelFlag = false;
-            string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
-            cts.Register(() =>
+            
+            // FIX 1: Safely handle cancellation token without double-free race conditions
+            using (cts.Register(() =>
             {
-                engine_destroy(engine);
-                cancelFlag = true;
-                Console.WriteLine("[!] Signal sent to C++ Engine...");
-            });
-            Random jitter = new Random();
-            var value = jitter.Next(Delay, Delay * 100);
-            Logger.Info($"Delay in scan :- {value}");
-            await Task.Delay(value);
+                cancelFlag = true; // Signal the C++ internal loops to safely halt execution
+                Console.WriteLine("[!] Abort signal piped safely to C++ native engine state layer...");
+            }))
+            {
+                string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
+                
+                Random jitter = new Random();
+                var value = jitter.Next(Delay, Delay * 100);
+                Logger.Info($"Delay in scan :- {value}");
+                
+                // Handling pre-scan async delay tracking
+                await Task.Delay(value, cts); 
 
-            string cleanPath = path.StartsWith("/") ? path : "/" + path;
-            CppScanOutput resultPtr = engine_scan(engine, cleanPath, ref cancelFlag);
-            string resHeader = resultPtr.response_headers;
-            var headers = new GlobalWires().ParseHeaders(resHeader);
-            scanOutput.Headers = headers;
-            scanOutput.StatusCode = resultPtr.status_code;
-            scanOutput.Message = resultPtr.reason_phrase;
-            scanOutput.LatencyMS = resultPtr.latency_ms;
-            scanOutput.Target = resultPtr.domain;
-            engine_destroy(engine);
-            return scanOutput;
+                if (cts.IsCancellationRequested)
+                {
+                    engine_destroy(engine);
+                    return scanOutput;
+                }
+
+                string cleanPath = path.StartsWith("/") ? path : "/" + path;
+                
+                // Execute unmanaged scanner assembly block safely
+                CppScanOutput resultPtr = engine_scan(engine, cleanPath, ref cancelFlag);
+                
+                if (cts.IsCancellationRequested)
+                {
+                    engine_destroy(engine);
+                    return scanOutput;
+                }
+
+                string resHeader = resultPtr.response_headers;
+                var headers = new GlobalWires().ParseHeaders(resHeader);
+                
+                scanOutput.Headers = headers;
+                scanOutput.StatusCode = resultPtr.status_code;
+                scanOutput.Message = resultPtr.reason_phrase;
+                scanOutput.LatencyMS = resultPtr.latency_ms;
+                scanOutput.Target = resultPtr.domain;
+                
+                // FIX 2: Single, unified destroy footprint at the end of normal execution channel
+                engine_destroy(engine);
+                return scanOutput;
+            }
         }
     }
 }
