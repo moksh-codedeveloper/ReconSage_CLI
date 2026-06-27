@@ -4,16 +4,19 @@
 #include <sstream>
 #include <cstring>
 #include <arpa/inet.h>
+
 using namespace std;
 
 namespace RfoParser
 {
+    // Keeping structural C compatibility layout for FFI/PInvoke 
     struct parser
     {
         char target[256];
         char password[128];
         char tor_ip[256];
         char proto_port[128];
+        char dns_server[256];
         uint16_t cp_port;
         uint16_t tor_port;
     };
@@ -24,25 +27,30 @@ namespace RfoParser
         char file_name[700];
 
     public:
-        Parser(char _file_name[700])
+        Parser(const char* _file_name)
         {
-            strcpy(file_name, _file_name);
+            memset(file_name, 0, sizeof(file_name));
+            if (_file_name != nullptr)
+            {
+                strncpy(file_name, _file_name, sizeof(file_name) - 1);
+                file_name[sizeof(file_name) - 1] = '\0';
+            }
         }
+
         bool isValidUrl(const char *url)
         {
-            // Hostname empty nahi hona chahiye aur 255 chars se bada nahi
             if (!url || url[0] == '\0' || strlen(url) > 255)
                 return false;
 
-            // Space check (socket ke liye hostname mein space invalid hota hai)
             if (strchr(url, ' ') != nullptr)
                 return false;
 
             return true;
         }
+
         bool isIpAddress(const char *host)
         {
-            if (host[0] == '\0' || strlen(host) > 255)
+            if (!host || host[0] == '\0' || strlen(host) > 255)
                 return false;
             struct sockaddr_in sa;
             int result = inet_pton(AF_INET, host, &sa.sin_addr);
@@ -51,20 +59,22 @@ namespace RfoParser
 
         bool isPasswordValid(const char *password)
         {
-            if (password[0] == '\0' || strlen(password) > 127 || strlen(password) == 0)
+            if (!password || password[0] == '\0' || strlen(password) > 127)
                 return false;
             return true;
         }
-        parser *FileParse()
+
+        // Hardened: Directly populates out_config passed by reference/pointer
+        bool FileParse(parser& out_config)
         {
             ifstream file(file_name);
             if (!file.is_open())
             {
-                return nullptr;
+                return false;
             }
 
-            parser *fileParsed = new parser();
-            memset(fileParsed, 0, sizeof(parser)); // Sab zeroed out rahega
+            // Zero-initialize the provided structure safely on the caller's memory frame
+            memset(&out_config, 0, sizeof(parser)); 
 
             string line;
             while (getline(file, line))
@@ -72,7 +82,7 @@ namespace RfoParser
                 if (line.empty() || line[0] == '[')
                     continue;
 
-                int eq = line.find('=');
+                size_t eq = line.find('=');
                 if (eq == string::npos)
                     continue;
 
@@ -85,95 +95,77 @@ namespace RfoParser
                 key.erase(0, key.find_first_not_of(" \t\r\n"));
                 key.erase(key.find_last_not_of(" \t\r\n") + 1);
 
-                // Agar value empty hai, to skip karo
                 if (value.empty())
                     continue;
 
+                // Strict Validation: If any requirement fails, return false immediately
                 if (key == "target")
                 {
-                    if (!isValidUrl(value.c_str()))
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
-                    strncpy(fileParsed->target, value.c_str(), 255);
+                    if (!isValidUrl(value.c_str())) return false;
+                    strncpy(out_config.target, value.c_str(), sizeof(out_config.target) - 1);
+                    out_config.target[sizeof(out_config.target) - 1] = '\0';
                 }
                 else if (key == "tor_ip")
                 {
-                    if (!isIpAddress(value.c_str()))
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
-                    strncpy(fileParsed->tor_ip, value.c_str(), 255);
+                    if (!isIpAddress(value.c_str())) return false;
+                    strncpy(out_config.tor_ip, value.c_str(), sizeof(out_config.tor_ip) - 1);
+                    out_config.tor_ip[sizeof(out_config.tor_ip) - 1] = '\0';
                 }
                 else if (key == "password")
                 {
-                    if (!isPasswordValid(value.c_str()))
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
-                    strncpy(fileParsed->password, value.c_str(), 127);
+                    if (!isPasswordValid(value.c_str())) return false;
+                    strncpy(out_config.password, value.c_str(), sizeof(out_config.password) - 1);
+                    out_config.password[sizeof(out_config.password) - 1] = '\0';
                 }
                 else if (key == "cp_port")
                 {
                     try
                     {
-                        int val = stoi(value);
-                        if (val < 1 || val > 65535)
-                        {
-                            delete fileParsed;
-                            return nullptr;
-                        }
-                        fileParsed->cp_port = (uint16_t)val;
+                        long long val = stoll(value);
+                        if (val < 1 || val > 65535) return false;
+                        out_config.cp_port = static_cast<uint16_t>(val);
                     }
-                    catch (...)
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
+                    catch (...) { return false; }
                 }
                 else if (key == "tor_port")
                 {
                     try
                     {
-                        int val = stoi(value);
-                        if (val < 1 || val > 65535)
-                        {
-                            delete fileParsed;
-                            return nullptr;
-                        }
-                        fileParsed->tor_port = (uint16_t)val;
+                        long long val = stoll(value);
+                        if (val < 1 || val > 65535) return false;
+                        out_config.tor_port = static_cast<uint16_t>(val);
                     }
-                    catch (...)
-                    {
-                        delete fileParsed;
-                        return nullptr;
-                    }
+                    catch (...) { return false; }
                 }
                 else if (key == "proto_port")
                 {
-                    strncpy(fileParsed->proto_port, value.c_str(), 127);
-                    fileParsed->proto_port[127] = '\0';
+                    if (value.length() > 127) return false;
+                    strncpy(out_config.proto_port, value.c_str(), sizeof(out_config.proto_port) - 1);
+                    out_config.proto_port[sizeof(out_config.proto_port) - 1] = '\0';
+                } 
+                else if(key == "dns_server")
+                {
+                    if (value.length() > 255) return false;
+                    strncpy(out_config.dns_server, value.c_str(), sizeof(out_config.dns_server) - 1);
+                    out_config.dns_server[sizeof(out_config.dns_server) - 1] = '\0';
                 }
             }
             file.close();
-            return fileParsed;
+            return true;
         }
     };
 }
+
 extern "C"
 {
-    RfoParser::parser *parse_rfo(const char *filename)
+    // Returns 1 (true) if successful, 0 (false) if file open failed or validation cracked
+    int parse_rfo(const char *filename, RfoParser::parser *out_config)
     {
-        RfoParser::Parser p((char *)filename);
-        return p.FileParse();
+        if (!filename || !out_config) return 0;
+        
+        RfoParser::Parser p(filename);
+        return p.FileParse(*out_config) ? 1 : 0;
     }
-
-    void free_parser(RfoParser::parser *config)
-    {
-        delete config;
-        config = nullptr;
-    }
+    
+    // free_parser is no longer needed at all!
 }

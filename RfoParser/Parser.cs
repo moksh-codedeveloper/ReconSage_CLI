@@ -4,7 +4,7 @@ using RfoModel;
 
 namespace TorConfigParser
 {
-    // Mirror of C++ struct — field order must match EXACTLY
+    // Mirror of C++ struct — field order and sizes match EXACTLY
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     internal struct CppParserConfig
     {
@@ -15,22 +15,24 @@ namespace TorConfigParser
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
         public string tor_ip;
 
-        // Add this missing field from C++
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string proto_port;
 
-        public ushort cp_port; // Rename kiya match karne ke liye
+        // Added missing field to match the updated C++ struct sequence
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)]
+        public string dns_server;
+
+        public ushort cp_port;
         public ushort tor_port;
     }
 
     public class RfoParser : IFileParser<RfoParsedModel>
     {
-        // P/Invoke bridge
+        // P/Invoke bridge updated to handle stack allocation via "out" keyword
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr parse_rfo(string filename);
+        private static extern int parse_rfo(string filename, out CppParserConfig outConfig);
 
-        [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void free_parser(IntPtr config);
+        // free_parser is completely removed since memory is allocated on the C# stack frame!
 
         public string _filepath { set; get; } = string.Empty;
 
@@ -41,12 +43,15 @@ namespace TorConfigParser
 
         private CppParserConfig ParseViaCpp()
         {
-            IntPtr ptr = parse_rfo(_filepath);
-            if (ptr == IntPtr.Zero)
+            // C++ will directly populate this variable on the stack frame
+            CppParserConfig config;
+
+            int result = parse_rfo(_filepath, out config);
+
+            // If validation cracks or file fails to open, C++ returns 0
+            if (result == 0)
                 throw new Exception("C++ parser failed to parse the .rfo file");
 
-            CppParserConfig config = Marshal.PtrToStructure<CppParserConfig>(ptr);
-            free_parser(ptr);
             return config;
         }
 
@@ -61,6 +66,8 @@ namespace TorConfigParser
             parsedModel.tor_ip = parsed.tor_ip;
             parsedModel.tor_port = parsed.tor_port;
             parsedModel.Proto_port = parsed.proto_port;
+            parsedModel.dns_server = parsed.dns_server;
+
             return parsedModel;
         }
     }

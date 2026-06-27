@@ -10,7 +10,7 @@ namespace NormalScan
     public class CppScan : INetwork
     {
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr create_engine(string path, string proto_port, int timeout, string headers);
+        private static extern IntPtr create_engine(string path, string proto_port, int timeout, string headers, string dns_server);
 
         [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput engine_scan(IntPtr engine, string path, ref bool cancelFlag);
@@ -23,20 +23,22 @@ namespace NormalScan
         private int Delay;
         private string port = string.Empty;
         private string Headers = string.Empty;
+        private string DNSServer = string.Empty;
 
-        public CppScan(string target, int timeout, int delay, string Port, string headers)
+        public CppScan(string target, int timeout, int delay, string Port, string headers, string dns_server)
         {
             Target = target;
             Timeout = timeout;
             Delay = delay;
             port = Port;
             Headers = headers;
+            DNSServer = dns_server;
         }
 
         public async Task<ScanOutput> SendAsync(string path, CancellationToken cts)
         {
             var scanOutput = new ScanOutput();
-            IntPtr engine = create_engine(Target, port, Timeout, Headers);
+            IntPtr engine = create_engine(Target, port, Timeout, Headers, DNSServer);
             
             // Shared cancellation state across managed/unmanaged boundary
             bool cancelFlag = false;

@@ -1,12 +1,16 @@
 #include <iostream>
 #include <fstream>
+#include <string>
+#include <sstream>
 #include <cstring>
 #include <cstdint>
-#include <arpa/inet.h>
 #include <memory>
+
 using namespace std;
+
 namespace RsoParser
 {
+    // Mirror structural C compatibility layout for FFI/PInvoke 
     struct parserModel
     {
         int timeout;
@@ -22,29 +26,38 @@ namespace RsoParser
         char _fileName[800];
 
     public:
-        Parser(char fileName[800])
+        // Hardened Constructor: Avoids strcpy boundary overflows
+        Parser(const char* fileName)
         {
-            strcpy(_fileName, fileName);
+            memset(_fileName, 0, sizeof(_fileName));
+            if (fileName != nullptr)
+            {
+                strncpy(_fileName, fileName, sizeof(_fileName) - 1);
+                _fileName[sizeof(_fileName) - 1] = '\0';
+            }
         }
 
         bool isJsonFile(const char *JsonFileName)
         {
-            if (JsonFileName[0] == '\0' || strlen(JsonFileName) < 5 || strlen(JsonFileName) > 799)
+            if (!JsonFileName || JsonFileName[0] == '\0' || strlen(JsonFileName) < 5 || strlen(JsonFileName) > 799)
                 return false;
             const char *dot = strrchr(JsonFileName, '.');
             if (!dot)
                 return false;
             return strcmp(dot, ".json") == 0;
         }
+
+        // Hardened: Swapped order to verify null pointer BEFORE reading indexing offset [0]
         bool isTextFile(const char *TextFileName)
         {
-            if (TextFileName[0] == '\0' || !TextFileName || strlen(TextFileName) < 5 || strlen(TextFileName) > 799)
+            if (!TextFileName || TextFileName[0] == '\0' || strlen(TextFileName) < 5 || strlen(TextFileName) > 799)
                 return false;
             const char *dot = strrchr(TextFileName, '.');
             if (!dot)
                 return false;
             return strcmp(dot, ".txt") == 0;
         }
+
         bool isFileValid()
         {
             if (_fileName[0] == '\0' || strlen(_fileName) < 5 || strlen(_fileName) > 799)
@@ -54,114 +67,100 @@ namespace RsoParser
                 return false;
             return strcmp(dot, ".rso") == 0;
         }
-        unique_ptr<parserModel> FileParse()
+
+        // Hardened: Directly builds on caller stack frame. No heap allocations used.
+        bool FileParse(parserModel& out_model)
         {
             if (!isFileValid())
             {
-                return nullptr;
+                return false;
             }
             ifstream file(_fileName);
             if (!file.is_open())
             {
-                return nullptr;
+                return false;
             }
-            unique_ptr<parserModel> fileParseModel = make_unique<parserModel>();
-            memset(fileParseModel.get(), 0, sizeof(parserModel));
+
+            // Zero out target memory space natively
+            memset(&out_model, 0, sizeof(parserModel));
             string line;
+            
             while (getline(file, line))
             {
                 if (line.empty() || line[0] == '[')
                     continue;
-                int eq = line.find('=');
+                    
+                size_t eq = line.find('=');
                 if (eq == string::npos)
                     continue;
+                    
                 string key = line.substr(0, eq);
                 string value = line.substr(eq + 1);
+
+                // Trim logic
                 value.erase(0, value.find_first_not_of(" \t\r\n"));
                 value.erase(value.find_last_not_of(" \t\r\n") + 1);
                 key.erase(0, key.find_first_not_of(" \t\r\n"));
                 key.erase(key.find_last_not_of(" \t\r\n") + 1);
+
+                if (value.empty())
+                    continue;
+
+                // Strict Validation Conditions
                 if (key == "timeout")
                 {
                     try
                     {
-                        if (stoi(value) < 0)
-                        {
-                            return nullptr;
-                        }
-                        fileParseModel->timeout = stoi(value);
+                        long long val = stoll(value);
+                        if (val < 0 || val > 2147483647) return false;
+                        out_model.timeout = static_cast<int>(val);
                     }
-                    catch (...)
-                    {
-                        return nullptr;
-                    }
+                    catch (...) { return false; }
                 }
-                if (key == "delay")
+                else if (key == "delay")
                 {
                     try
                     {
-                        if (stoi(value) < 0)
-                        {
-                            return nullptr;
-                        }
-                        fileParseModel->delay = stoi(value);
+                        long long val = stoll(value);
+                        if (val < 0 || val > 2147483647) return false;
+                        out_model.delay = static_cast<int>(val);
                     }
-                    catch (...)
-                    {
-                        return nullptr;
-                    }
+                    catch (...) { return false; }
                 }
-                if (key == "wordlist_path")
+                else if (key == "wordlist_path")
                 {
-                    if (!isTextFile(value.c_str()))
-                    {
-                        return nullptr;
-                    }
-                    else
-                    {
-                        strncpy(fileParseModel->wordlist_path, value.c_str(), 799);
-                    }
+                    if (!isTextFile(value.c_str())) return false;
+                    strncpy(out_model.wordlist_path, value.c_str(), sizeof(out_model.wordlist_path) - 1);
+                    out_model.wordlist_path[sizeof(out_model.wordlist_path) - 1] = '\0';
                 }
-                if (key == "json_file_path")
+                else if (key == "json_file_path") // Kept your exact key lookup
                 {
-                    if (!isJsonFile(value.c_str()))
-                    {
-                        return nullptr;
-                    }
-                    else
-                    {
-                        strncpy(fileParseModel->json_file_name, value.c_str(), 799);
-                    }
+                    if (!isJsonFile(value.c_str())) return false;
+                    strncpy(out_model.json_file_name, value.c_str(), sizeof(out_model.json_file_name) - 1);
+                    out_model.json_file_name[sizeof(out_model.json_file_name) - 1] = '\0';
                 }
-                if (key == "headers_file")
+                else if (key == "headers_file")
                 {
-                    if (!isTextFile(value.c_str()))
-                    {
-                        return nullptr;
-                    }
-                    else
-                    {
-                        strncpy(fileParseModel->headers_file, value.c_str(), 799);
-                    }
+                    if (!isTextFile(value.c_str())) return false;
+                    strncpy(out_model.headers_file, value.c_str(), sizeof(out_model.headers_file) - 1);
+                    out_model.headers_file[sizeof(out_model.headers_file) - 1] = '\0';
                 }
             }
-            return fileParseModel;
+            file.close();
+            return true;
         }
     };
 }
 
 extern "C"
 {
-    RsoParser::parserModel *parse_config(const char *fileName)
+    // Returns 1 if valid and complete, 0 if verification drops out
+    int parse_config(const char *fileName, RsoParser::parserModel *out_model)
     {
-        RsoParser::Parser p(const_cast<char *>(fileName));
-        auto result = p.FileParse();
-        if (!result)
-            return nullptr;
-        return result.release();
+        if (!fileName || !out_model) return 0;
+        RsoParser::Parser p(fileName);
+        return p.FileParse(*out_model) ? 1 : 0;
     }
-    void free_module(RsoParser::parserModel *parsed_model)
-    {
-        delete parsed_model;
-    }
+
+    // free_module is no longer needed or exported!
 }

@@ -106,7 +106,7 @@ namespace ReconSageShell
                             await AllScans.ExecCppScan(target: cppRfo.Target, port: cppRfo.Proto_port, headers: cpp_headers,
                             timeout: cppRso.Timeout, delay: cppRso.Delay,
                             jsonFilePath: cppRso.JsonFilePath,
-                            wordlistPath: cppRso.WordlistPath, cts);
+                            wordlistPath: cppRso.WordlistPath, cts, cppRfo.dns_server);
                             break;
 
                         case "start_tor_scan":

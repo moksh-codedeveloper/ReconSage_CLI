@@ -24,10 +24,10 @@ namespace AllScansInOne
             }
             await wires.WriteToJsonAsync<MainScanOutput>(scanOutput, jsonFilePath);
         }
-        public static async Task ExecCppScan(string target, string port, string headers, int timeout, int delay, string jsonFilePath, string wordlistPath, CancellationTokenSource cts)
+        public static async Task ExecCppScan(string target, string port, string headers, int timeout, int delay, string jsonFilePath, string wordlistPath, CancellationTokenSource cts, string DNSServer)
         {
             var mainScan = new MainScanOutput();
-            INetwork cppScan = new CppScan(target, timeout, delay, port, headers);
+            INetwork cppScan = new CppScan(target, timeout, delay, port, headers, DNSServer);
             var wordlists = await wires.ProcessWordlist(wordlistPath);
             for(int i = 0; i < wordlists.Length; i++)
             {

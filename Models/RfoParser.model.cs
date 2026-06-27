@@ -8,5 +8,6 @@ namespace RfoModel
         public string tor_ip { set; get; } = string.Empty;
         public string Proto_port { set; get; } = string.Empty;
         public int tor_port { set; get; }
+        public string dns_server{set; get;} = string.Empty;
     }
 }
