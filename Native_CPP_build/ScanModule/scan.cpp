@@ -7,6 +7,7 @@
 #include <chrono>
 #include "../Generic_Module/interface_scan_module.cpp"
 #include "../ReconDNS/DomainStack.cpp"
+
 using namespace std;
 
 class CppScanModule
@@ -44,8 +45,6 @@ public:
         SSL_load_error_strings();
         ctx = SSL_CTX_new(TLS_client_method());
     }
-
-    // FIX 2: Added missing Destructor to clear OpenSSL Context allocation
     ~CppScanModule()
     {
         if (ctx)
@@ -58,7 +57,6 @@ public:
     ScanOutputStruct scan(char path[2048], bool *cancel_flag)
     {
         ScanOutputStruct output;
-        memset(&output, 0, sizeof(ScanOutputStruct)); // Ensure zero-init state
         if (domain_resolved.empty())
         {
             cout << "[ERROR C++] Target resolution state is unmapped. Aborting scan loop." << endl;
@@ -123,8 +121,6 @@ public:
 
         // FIX 4: Removed the short-circuit bounds block that dropped successful scans
         char buff[65536];
-        memset(buff, 0, sizeof(buff));
-
         strncpy(buff, result.headers, sizeof(buff) - 1);
         strncpy(output.headers, result.headers, sizeof(output.headers) - 1);
         snprintf(output.domain, sizeof(output.domain), "%s", result.domain);

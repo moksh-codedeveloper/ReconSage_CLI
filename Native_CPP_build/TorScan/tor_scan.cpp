@@ -11,6 +11,7 @@
 #include <cstring>
 #include "../Generic_Module/interface_scan_module.cpp"
 #include "../Generic_Module/SocksModule.cpp"
+#include "../Generic_Module/wires.cpp"
 
 using namespace std;
 

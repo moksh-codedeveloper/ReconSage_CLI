@@ -1,10 +1,10 @@
 #include "../Generic_Module/SocksModule.cpp"
 #include <chrono>
-#include "Http_Https_generic_modules/interface.cpp"
-#include "Http_Https_generic_modules/scan_model.cpp"
-#include "ProxyScanOutputStruct.cpp"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include "../Generic_Module/wires.cpp"
+#include "../Generic_Module/output_struct.cpp"
+#include "../Generic_Module/interface_scan_module.cpp"
 using namespace std;
 
 class SocksScan
@@ -48,9 +48,9 @@ public:
         {
             return result;
         }
-        ScanOutput output;
+        GenericStruct output;
         SocksProxy proxyScan(domain, proxy_host, timeout, proxy_port, atoi(proto_port));
-        UnifiedScanInterface interface(domain, proto_port, headers);
+        GenericInterface interface(domain, headers, proto_port);
         bool isHttps = (strcmp(proto_port, "443") == 0);
         auto start = chrono::high_resolution_clock::now();
         int sock = proxyScan.SockTunnel();
@@ -89,7 +89,7 @@ public:
             }
             return result;
         }
-        output = interface.scan(path, sock, ssl);
+        output = interface.interface_scan(path, cancel_flag, sock, ssl);
         if (cancel_flag && *cancel_flag)
         {
             if (isHttps)

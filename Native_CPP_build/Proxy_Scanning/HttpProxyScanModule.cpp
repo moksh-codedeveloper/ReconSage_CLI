@@ -1,12 +1,10 @@
-// #include "Http_Https_generic_modules/interface.cpp"
-// #include "Http_Https_generic_modules/scan_model.cpp"
 #include "Proxy_Scan.cpp"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <chrono>
-#include "ProxyScanOutputStruct.cpp"
 #include "../Generic_Module/interface_scan_module.cpp"
 #include "../Generic_Module/output_struct.cpp"
+#include "../Generic_Module/wires.cpp"
 struct HttpScanOutput
 {
     char domain[3072];
