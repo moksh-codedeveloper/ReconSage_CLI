@@ -14,6 +14,7 @@ private:
     char proxy_host[256];
     int timeout;
     int proxy_port;
+    int proto_port;
     struct timeval tv;
     vector<string> error_msg = {
         "general SOCKS server failure",
@@ -52,12 +53,13 @@ private:
     }
 
 public:
-    SocksProxy(char _domain[256], char _proxy_host[256], int _timeout, int _proxy_port)
+    SocksProxy(char _domain[256], char _proxy_host[256], int _timeout, int _proxy_port, int _proto_port)
     {
         strncpy(domain, _domain, 256);
         strncpy(proxy_host, _proxy_host, 256);
         proxy_port = _proxy_port;
         timeout = _timeout;
+        proto_port = _proto_port;
         tv.tv_sec = timeout / 1000;
         tv.tv_usec = (timeout % 1000) * 1000;
     }
@@ -106,7 +108,7 @@ public:
             {
                 greetings.push_back((uint8_t)domain[i]);
             }
-            uint16_t port_val = htons(53);
+            uint16_t port_val = htons(proto_port);
             uint8_t port_bytes[2];
             memcpy(port_bytes, &port_val, 2);
             greetings.push_back(port_bytes[0]);

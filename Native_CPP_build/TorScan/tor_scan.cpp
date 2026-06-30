@@ -10,7 +10,8 @@
 #include <string>
 #include <cstring>
 #include "../Generic_Module/interface_scan_module.cpp"
-#include"tor_tunnel.cpp"
+#include "../Generic_Module/SocksModule.cpp"
+
 using namespace std;
 
 class Scan
@@ -29,11 +30,11 @@ private:
 public:
     Scan(char _domain[256], char _proto_port[128], char _headers[8192], char _tor_ip[256], char _password[8192], int _timeout, int _tor_port, int _cp_tor_port)
     {
-        strncpy(domain, _domain, 255); domain[255] = '\0';
-        strncpy(proto_port, _proto_port, 127); proto_port[127] = '\0';
-        strncpy(headers, _headers, 8191); headers[8191] = '\0';
-        strncpy(tor_ip, _tor_ip, 255); tor_ip[255] = '\0';
-        strncpy(password, _password, 8191); password[8191] = '\0';
+        strncpy(domain, _domain, 256);
+        strncpy(proto_port, _proto_port, 128);
+        strncpy(headers, _headers, 8192);
+        strncpy(tor_ip, _tor_ip, 256);
+        strncpy(password, _password, 8192);
         tor_port = _tor_port;
         timeout = _timeout;
         cp_tor_port = _cp_tor_port;
@@ -96,7 +97,7 @@ public:
 
     ScanOutputStruct tor_scan(char path[2048], bool *cancel_flag)
     {
-        TorTunnel tunnel(domain, proto_port, tor_ip, tor_port, timeout);
+        SocksProxy tunnel(domain, tor_ip, timeout, tor_port, atoi(proto_port));
         SSL *ssl = nullptr;
         ScanOutputStruct output;
         memset(&output, 0, sizeof(ScanOutputStruct));
@@ -104,10 +105,10 @@ public:
         GenericInterface interface(domain, headers, proto_port);
         if (cancel_flag && *cancel_flag) return output;
         
-        bool isHttps = (strcmp(proto_port, "443") == 0 || strcmp(proto_port, "https") == 0);
+        bool isHttps = (strcmp(proto_port, "443") == 0);
         auto start = chrono::high_resolution_clock::now();
         
-        int sock = tunnel.SockTorTunnel();
+        int sock = tunnel.SockTunnel();
         if (sock < 0) return output;
 
         if (isHttps)
@@ -145,7 +146,7 @@ public:
             if (cancel_flag && *cancel_flag) return output;
 
             // FIX 1: Re-establish pristine tunnel connection and re-run query execution
-            sock = tunnel.SockTorTunnel();
+            sock = tunnel.SockTunnel();
             if (sock >= 0)
             {
                 if (isHttps)

@@ -70,11 +70,11 @@ public:
         target_addr.sin_family = AF_INET;
         target_addr.sin_addr.s_addr = inet_addr(domain_resolved.c_str());
         // Handle port evaluation safely from your string context
-        if (strcmp(proto_port, "https") == 0 || strcmp(proto_port, "443") == 0)
+        if (strcmp(proto_port, "443") == 0)
         {
             target_addr.sin_port = htons(443);
         }
-        else if (strcmp(proto_port, "http") == 0 || strcmp(proto_port, "80") == 0)
+        else if (strcmp(proto_port, "80") == 0)
         {
             target_addr.sin_port = htons(80);
         }

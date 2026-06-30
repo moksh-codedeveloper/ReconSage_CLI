@@ -21,17 +21,14 @@ private:
 public:
     GenericInterface(char _domain[256], char _headers[8192], char _proto_port[128])
     {
-        strncpy(domain, _domain, 255);
-        domain[255] = '\0';
-        strncpy(headers, _headers, 8191);
-        headers[8191] = '\0';
-        strncpy(proto_port, _proto_port, 127);
-        proto_port[127] = '\0';
+        strncpy(domain, _domain, 256);
+        strncpy(headers, _headers, 8192);
+        strncpy(proto_port, _proto_port, 128);
     }
     
     GenericStruct interface_scan(char path[2048], bool *cancel_flag, int &sock, SSL *&ssl)
     {
-        bool isHttps = (strcmp(proto_port, "443") == 0 || strcmp(proto_port, "https") == 0);
+        bool isHttps = (strcmp(proto_port, "443") == 0);
         string clean_headers(headers);
         size_t pos;
         while ((pos = clean_headers.find("\\r\\n")) != string::npos)

@@ -1,4 +1,4 @@
-#include "Proxy_Scan.cpp"
+#include "../Generic_Module/SocksModule.cpp"
 #include <chrono>
 #include "Http_Https_generic_modules/interface.cpp"
 #include "Http_Https_generic_modules/scan_model.cpp"
@@ -49,11 +49,11 @@ public:
             return result;
         }
         ScanOutput output;
-        ProxyScan proxyScan(domain, proxy_port, proxy_host, proto_port, timeout);
+        SocksProxy proxyScan(domain, proxy_host, timeout, proxy_port, atoi(proto_port));
         UnifiedScanInterface interface(domain, proto_port, headers);
-        bool isHttps = (strcmp(proto_port, "https") == 0 || strcmp(proto_port, "443") == 0);
+        bool isHttps = (strcmp(proto_port, "443") == 0);
         auto start = chrono::high_resolution_clock::now();
-        int sock = proxyScan.SocksTunnel();
+        int sock = proxyScan.SockTunnel();
         if (isHttps)
         {
             ssl = SSL_new(ctx);

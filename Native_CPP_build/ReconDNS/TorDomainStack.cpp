@@ -37,7 +37,7 @@ public:
     string resolvede()
     {
         string resolved = "";
-        SocksProxy proxy_tunnel(dns_server, proxy_host, timeout, proxy_port);
+        SocksProxy proxy_tunnel(dns_server, proxy_host, timeout, proxy_port, 53);
         int sock = proxy_tunnel.SockTunnel();
         vector<uint8_t> dns_packet;
         DNSHeader header;

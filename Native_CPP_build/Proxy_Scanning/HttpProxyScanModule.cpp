@@ -1,11 +1,12 @@
-#include "Http_Https_generic_modules/interface.cpp"
-#include "Http_Https_generic_modules/scan_model.cpp"
+// #include "Http_Https_generic_modules/interface.cpp"
+// #include "Http_Https_generic_modules/scan_model.cpp"
 #include "Proxy_Scan.cpp"
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <chrono>
 #include "ProxyScanOutputStruct.cpp"
-
+#include "../Generic_Module/interface_scan_module.cpp"
+#include "../Generic_Module/output_struct.cpp"
 struct HttpScanOutput
 {
     char domain[3072];
@@ -57,12 +58,12 @@ public:
         {
             return result;
         }
-        ScanOutput output;
-        UnifiedScanInterface scanInterface(domain, proto_port, headers);
+        GenericStruct output;
+        GenericInterface scanInterface(domain, headers, proto_port);
         ProxyScan scan(domain, proxy_port, proxy_host, proto_port, timeout);
         auto start = chrono::high_resolution_clock::now();
         int sock = scan.HttpProxy();
-        bool isHttps = (strcmp(proto_port, "https") == 0 || strcmp(proto_port, "443") == 0);
+        bool isHttps = (strcmp(proto_port, "443") == 0);
         if (isHttps)
         {
             ssl = SSL_new(ctx);
@@ -84,7 +85,7 @@ public:
             close(sock);
             return result;
         }
-        output = scanInterface.scan(path, sock, ssl);
+        output = scanInterface.interface_scan(path, cancel_flag, sock, ssl);
         if (cancel_flag && *cancel_flag)
         {
             if(isHttps){
