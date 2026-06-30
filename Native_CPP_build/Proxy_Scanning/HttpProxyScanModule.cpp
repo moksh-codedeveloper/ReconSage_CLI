@@ -76,7 +76,8 @@ public:
         }
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
@@ -86,7 +87,8 @@ public:
         output = scanInterface.interface_scan(path, cancel_flag, sock, ssl);
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
@@ -106,7 +108,8 @@ public:
         }
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
@@ -119,7 +122,8 @@ public:
         result.status_code = extract_status_from_buffer(output.headers);
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
@@ -135,19 +139,27 @@ public:
         result.latency_ms = chrono::duration<double, milli>(end - start).count();
         if (cancel_flag && *cancel_flag)
         {
-            if(isHttps){
+            if (isHttps)
+            {
                 SSL_shutdown(ssl);
                 SSL_free(ssl);
             }
             close(sock);
             return result;
         }
-        if (isHttps)
+        if (isHttps && ssl)
         {
             SSL_shutdown(ssl);
             SSL_free(ssl);
+            if (sock >= 0)
+            {
+                close(sock);
+            }
         }
-        close(sock);
+        if (sock >= 0)
+        {
+            close(sock);
+        }
         return result;
     }
 };

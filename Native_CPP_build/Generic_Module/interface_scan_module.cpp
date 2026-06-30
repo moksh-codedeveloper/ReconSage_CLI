@@ -134,11 +134,7 @@ public:
                 break;
             }
         }
-        
-        // Clean cleanup without leaving dead allocations hanging
-        if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); ssl = nullptr; }
-        if (sock >= 0) { close(sock); sock = -1; }
-        
+
         return scanResult;
     }
 };
