@@ -51,7 +51,7 @@ namespace NormalScan
             }))
             {
                 string sanitizedTarget = new GlobalWires().SanitizeTarget(Target);
-                
+
                 Random jitter = new Random();
                 var value = jitter.Next(Delay, Delay * 100);
                 Logger.Info($"Delay in scan :- {value}");

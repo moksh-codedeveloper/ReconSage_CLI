@@ -13,6 +13,6 @@ target_link_libraries(reconsage PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 
 set_target_properties(reconsage PROPERTIES
     OUTPUT_NAME "cpp_module"
-    PREFIX "scan_"
+    PREFIX "res_body_scan_"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../../bin/Debug/net10.0"
 )
