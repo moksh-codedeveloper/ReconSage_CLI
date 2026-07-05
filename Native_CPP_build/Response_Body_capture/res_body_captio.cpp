@@ -235,4 +235,8 @@ extern "C"
     {
         return static_cast<ReconDeBodyCaptio *>(engine)->scan(cancel_flag, path);
     }
+    
+    void destroy_res_captio_engine(void *engine){
+        delete static_cast<ReconDeBodyCaptio *>(engine);
+    }
 }
