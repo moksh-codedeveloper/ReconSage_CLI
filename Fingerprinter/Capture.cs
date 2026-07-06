@@ -52,14 +52,9 @@ namespace Capture
                 }
                 string cleanPath = path.StartsWith("/") ? path : "/" + path;
                 BodyStruct bodyStruct = res_cap_scan(engine, path, ref cancelFlag);
-                if (!cts.IsCancellationRequested)
-                {
-                    destroy_res_captio_engine(engine);
-                    return result;
-                }
                 result.target = bodyStruct.domain;
                 result.bodyResponse = bodyStruct.captured_body;
-                Logger.Info($"[Debug C++] Here is your body {result.bodyResponse}");
+                Logger.Info($"[Debug C++] Here is your body {bodyStruct.captured_body}");
                 destroy_res_captio_engine(engine);
                 return result;
             }
