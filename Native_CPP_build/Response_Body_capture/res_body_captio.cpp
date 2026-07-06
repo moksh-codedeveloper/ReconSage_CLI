@@ -220,6 +220,7 @@ public:
             size_t bytesToCopy = (availableBodyBytes > 4095) ? 4095 : availableBodyBytes;
             std::memcpy(myData.captured_body, body_start, bytesToCopy);
             myData.captured_body[bytesToCopy] = '\0';
+            cout << "[DEBUG C++] Response Body :- " << myData.captured_body << endl;
         }
         return myData;
     }

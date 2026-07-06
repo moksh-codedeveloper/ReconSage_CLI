@@ -30,10 +30,10 @@ namespace Capture
         [DllImport("res_body_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern BodyStruct res_cap_scan(IntPtr engine, string path, ref bool cancelFlag);
 
-        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("res_body_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void destroy_res_captio_engine(IntPtr engine);
 
-        ScanResponseBodyModel Scan(string path, CancellationToken cts)
+        public ScanResponseBodyModel Scan(string path, CancellationToken cts)
         {
             ScanResponseBodyModel result = new ScanResponseBodyModel();
             IntPtr engine = create_res_body_capture_engine(domain, proxy_host, proto_port, dns_server, proxy_port, timeout);
@@ -59,6 +59,7 @@ namespace Capture
                 }
                 result.target = bodyStruct.domain;
                 result.bodyResponse = bodyStruct.captured_body;
+                Logger.Info($"[Debug C++] Here is your body {result.bodyResponse}");
                 destroy_res_captio_engine(engine);
                 return result;
             }

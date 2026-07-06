@@ -5,6 +5,9 @@ using ScanOutputModel;
 using SocksProxyModule;
 using TorScan;
 using Wire;
+using ResponseBodyStruct;
+using Capture;
+using System.Net;
 
 namespace AllScansInOne
 {
@@ -64,6 +67,20 @@ namespace AllScansInOne
                 mainScan.Result.Add(result);
             }
             await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
+        }
+
+        public static async Task ExecCaptureScan(string target, string proto_port, string proxy_host, string jsonFilePath, string wordlistPath, int timeout, int proxy_port, CancellationTokenSource cts, string dns_server)
+        {
+            var mainScan = new MainScanResponseBodyModel();
+            var capture = new CaptureScan(target, proto_port, proxy_host, dns_server, proxy_port, timeout);
+            var wordlists = await new GlobalWires().ProcessWordlist(wordlistPath);
+            for(int i = 0; i < wordlists.Length; i++)
+            {
+                new GlobalWires().ShowProgress(i, wordlists.Length, wordlists[i]);
+                var result = capture.Scan(wordlists[i], cts.Token);
+                mainScan.Result.Add(result);
+            }
+            await new GlobalWires().WriteToJsonAsync<MainScanResponseBodyModel>(mainScan, jsonFilePath);
         }
     }
 }

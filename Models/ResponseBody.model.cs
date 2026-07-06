@@ -17,4 +17,9 @@ namespace ResponseBodyStruct
         public string target{set;get;} = string.Empty;
         public string bodyResponse{set;get;} = string.Empty;
     }
+
+    public class MainScanResponseBodyModel
+    {
+        public List<ScanResponseBodyModel> Result{get; set;} = new();
+    }
 }

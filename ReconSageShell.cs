@@ -54,7 +54,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan" };
+            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan" , "start_cpp_body_capture"};
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -131,6 +131,13 @@ namespace ReconSageShell
                             var socksRfo = sessionData.rfoParsed!;
                             string socks_headers = await wires.HeaderTextParser(socksRso.HeadersFile);
                             await AllScans.ExecSockProxy(socksRfo.Target, socksRfo.Proto_port, socksRfo.tor_ip, socks_headers, socksRso.JsonFilePath, socksRso.WordlistPath, socksRso.Timeout, socksRfo.tor_port, cts, socksRso.Delay);
+                            break;
+                        case "start_cpp_body_capture":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Scan("Initializing Cpp body capture scan module......");
+                            var bodySocksRso = sessionData.RsoConfig!;
+                            var bodySocksRfo = sessionData.rfoParsed!;
+                            await AllScans.ExecCaptureScan(bodySocksRfo.Target, bodySocksRfo.Proto_port, bodySocksRfo.tor_ip, bodySocksRso.JsonFilePath, bodySocksRso.WordlistPath, bodySocksRso.Timeout, bodySocksRfo.tor_port, cts, bodySocksRfo.dns_server);
                             break;
                         case "exit":
                             _isRunning = false;
