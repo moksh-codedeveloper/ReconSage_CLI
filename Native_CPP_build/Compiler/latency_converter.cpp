@@ -1,58 +1,73 @@
 #include <vector>
-#include <cstring>
-#include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <cstring>
+#include <cmath>
+
 using namespace std;
 
-class LatencyCompiler
-{
-private:
-    vector<double> latencyList;
+// The unified storage structure for latency data metrics
+struct Latency_Compiler_Struct {
     char domain[256];
+    vector<double> raw_latency_arr;
+    vector<float> normalized_latency_arr; // Scaled between 0.0f and 1.0f
+    vector<double> fast_responses;        // Under 200ms (Direct/Good Proxy)
+    vector<double> medium_responses;      // 200ms - 1000ms (Average Tor/Proxy hop)
+    vector<double> slow_or_timeout;       // Over 1000ms (Lagging or active block)
+    double mean_latency;
+};
+
+class LatencyCompiler {
+private:
+    vector<double> latency_list;
+    char domain[256];
+    const double MAX_LATENCY_CAP = 5000.0; // 5 seconds max tracking window
 
 public:
-    LatencyCompiler(char _domain[256], vector<double> _latencyList)
-    {
+    LatencyCompiler(vector<double> _latency_list, char _domain[256]) {
         strncpy(domain, _domain, 256);
-        latencyList = _latencyList;
+        latency_list = _latency_list;
     }
 
-    vector<uint64_t> Compile()
-    {
-        vector<uint64_t> hex_arr;
-
-        for (const double &latency : latencyList)
-        {
-            uint64_t hex_token;
-            // Safely copy all 8 bytes of the double into the 8-byte uint64_t
-            memcpy(&hex_token, &latency, sizeof(double));
-
-            cout << "Latency: " << latency
-                 << " -> Compiled Hex64: 0x" << std::hex << hex_token << std::dec << endl;
-
-            hex_arr.push_back(hex_token);
-        }
-        return hex_arr; // Added missing return statement!
+    // Normalizes a single raw latency value down to a 0.0f - 1.0f range
+    float NormalizeLatency(double raw_ms) {
+        if (raw_ms < 0.0) raw_ms = 0.0;
+        if (raw_ms > MAX_LATENCY_CAP) raw_ms = MAX_LATENCY_CAP;
+        return static_cast<float>(raw_ms / MAX_LATENCY_CAP);
     }
 
-    // Fixed: Calculates true mathematical mean first, then emits the final compiled token
-    uint64_t CompileMeanLatency()
-    {
-        if (latencyList.empty())
-            return 0U;
+    // Master execution block that computes metrics and populates the struct
+    Latency_Compiler_Struct Compile() {
+        Latency_Compiler_Struct out_struct;
+        
+        // 1. Copy over basic platform tracking attributes
+        strncpy(out_struct.domain, domain, 256);
+        out_struct.raw_latency_arr = latency_list;
 
-        double total = 0.0;
-        for (const double &latency : latencyList)
-        {
-            total += latency;
+        double total_sum = 0.0;
+
+        // 2. Continuous linear pass to categorize and normalize the execution time
+        for (const double& ms : latency_list) {
+            total_sum += ms;
+
+            // Normalize and store the mathematical feature token
+            out_struct.normalized_latency_arr.push_back(NormalizeLatency(ms));
+
+            // Run structural categorization thresholds
+            if (ms < 200.0) {
+                out_struct.fast_responses.push_back(ms);
+            } 
+            else if (ms >= 200.0 && ms <= 1000.0) {
+                out_struct.medium_responses.push_back(ms);
+            } 
+            else {
+                out_struct.slow_or_timeout.push_back(ms);
+            }
         }
 
-        double mean = total / latencyList.size();
+        // 3. Mathematical Mean Calculation (Safely avoiding divide-by-zero)
+        out_struct.mean_latency = latency_list.empty() ? 0.0 : (total_sum / latency_list.size());
 
-        uint64_t mean_hex_token;
-        memcpy(&mean_hex_token, &mean, sizeof(double));
-
-        return mean_hex_token;
+        return out_struct;
     }
 };
