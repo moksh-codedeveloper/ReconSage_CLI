@@ -5,6 +5,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using ResponseBodyStruct;
 
 namespace Wire
 {
@@ -23,6 +24,73 @@ namespace Wire
             }
             return DetectedCodes;
         }
+        public void WriteTextResBody(MainScanResponseBodyModel mainModel, string outputFilePath)
+        {
+            try
+            {
+                // Determine the final safe path to use
+                string finalFilePath = outputFilePath;
+
+                // Check if the file already exists on the disk space
+                if (File.Exists(outputFilePath))
+                {
+                    // Isolate directory paths, raw filename, and the target extension (e.g., ".txt")
+                    string directory = Path.GetDirectoryName(outputFilePath) ?? string.Empty;
+                    string fileNameWithoutExt = Path.GetFileNameWithoutExtension(outputFilePath);
+                    string extension = Path.GetExtension(outputFilePath);
+
+                    // Generate a highly precise timestamp layout down to the second
+                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+                    // Construct a completely unique new name: filename_20260707_145000.txt
+                    string newFileName = $"{fileNameWithoutExt}_{timestamp}{extension}";
+
+                    // Reassemble the full absolute or relative path
+                    finalFilePath = Path.Combine(directory, newFileName);
+                }
+                // Using a StringBuilder to batch file I/O operations efficiently
+                StringBuilder sb = new StringBuilder();
+
+                sb.AppendLine("================================================================================");
+                sb.AppendLine($"[RECONSAGE SCAN ENGINE REPORT]");
+                sb.AppendLine($"TIMESTAMP: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"TOTAL CAPTURED PATHS: {mainModel.Result.Count}");
+                sb.AppendLine("================================================================================");
+                sb.AppendLine();
+
+                foreach (var scan in mainModel.Result)
+                {
+                    sb.AppendLine("--------------------------------------------------------------------------------");
+                    sb.AppendLine($"[TARGET]: {scan.target}");
+                    sb.AppendLine("--------------------------------------------------------------------------------");
+
+                    if (!string.IsNullOrEmpty(scan.bodyResponse))
+                    {
+                        sb.AppendLine(scan.bodyResponse.TrimEnd());
+                    }
+                    else
+                    {
+                        sb.AppendLine("[WARN] Response body was empty or unreachable.");
+                    }
+
+                    sb.AppendLine(); // Buffer spacing between iterations
+                }
+
+                sb.AppendLine("===========================[ END OF RECON REPORT ]===========================");
+                sb.AppendLine();
+
+                // Write or append the text block natively to the disk filesystem
+                // If you want to append across completely separate command sessions, use File.AppendAllText instead
+                File.WriteAllText(outputFilePath, sb.ToString());
+
+                Console.WriteLine($"[SUCCESS] Pure text report successfully written to: {outputFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Failed to write text report to disk: {ex.Message}");
+            }
+        }
+
         public List<double> SpikedLatency(List<double> latency)
         {
             if (latency == null || latency.Count < 10) return new List<double>();
@@ -298,9 +366,9 @@ namespace Wire
                 }
 
                 int colonIndex = line.IndexOf(':');
-                if(colonIndex > 0)
+                if (colonIndex > 0)
                 {
-                    string key = line.Substring(0 ,colonIndex).Trim();
+                    string key = line.Substring(0, colonIndex).Trim();
                     string value = line.Substring(colonIndex + 1).Trim();
                     cleanHeaders.AppendLine($"{key}: {value}");
                 }

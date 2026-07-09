@@ -80,7 +80,7 @@ namespace AllScansInOne
                 var result = capture.Scan(wordlists[i], cts.Token);
                 mainScan.Result.Add(result);
             }
-            await new GlobalWires().WriteToJsonAsync<MainScanResponseBodyModel>(mainScan, jsonFilePath);
+            new GlobalWires().WriteTextResBody(mainScan, jsonFilePath);
         }
     }
 }
