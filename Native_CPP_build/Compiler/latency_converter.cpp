@@ -3,19 +3,8 @@
 #include <iostream>
 #include <cstring>
 #include <cmath>
-
+#include "compiler_struct.cpp"
 using namespace std;
-
-// The unified storage structure for latency data metrics
-struct Latency_Compiler_Struct {
-    char domain[256];
-    vector<double> raw_latency_arr;
-    vector<float> normalized_latency_arr; // Scaled between 0.0f and 1.0f
-    vector<double> fast_responses;        // Under 200ms (Direct/Good Proxy)
-    vector<double> medium_responses;      // 200ms - 1000ms (Average Tor/Proxy hop)
-    vector<double> slow_or_timeout;       // Over 1000ms (Lagging or active block)
-    double mean_latency;
-};
 
 class LatencyCompiler {
 private:
@@ -71,3 +60,33 @@ public:
         return out_struct;
     }
 };
+
+// // Add these public methods inside your LatencyCompiler class:
+
+// double CalculateMean() {
+//     if (latency_list.empty()) return 0.0;
+//     double sum = 0.0;
+//     for (const double& ms : latency_list) sum += ms;
+//     return sum / latency_list.size();
+// }
+
+// double CalculateStdDev(double mean) {
+//     if (latency_list.size() < 2) return 0.0; // Variance requires at least 2 points
+    
+//     double variance_sum = 0.0;
+//     for (const double& ms : latency_list) {
+//         double deviation = ms - mean;
+//         variance_sum += (deviation * deviation); // Deviation squared
+//     }
+    
+//     double variance = variance_sum / latency_list.size();
+//     return sqrt(variance); // Standard Deviation (sigma)
+// }
+
+// // Establishes the dynamic wall where a request transitions from "normal" to "anomalous lag"
+// double CalculateAnomalyThreshold(double mean, double std_dev) {
+//     // Threshold = Mean + (K * StdDev)
+//     // K = 2.0 captures 95% of normal traffic. Anything above this is statistically an anomaly (WAF throttle)
+//     const double K_FACTOR = 2.0; 
+//     return mean + (K_FACTOR * std_dev);
+// }
