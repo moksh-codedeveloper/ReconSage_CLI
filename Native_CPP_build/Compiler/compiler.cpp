@@ -50,19 +50,20 @@ public:
     }
     void save_file(vector<vector<double>> &data)
     {
-        char safe_filename[3104];
-        for (int i = 0; i < 3072; ++i)
+        // 1. Initialize the stack array to zero to prevent garbage trailing data
+        char safe_filename[512] = {0};
+
+        // 2. Bound the reading loop strictly to your 256 array limit
+        for (int i = 0; i < 256; ++i)
         {
             char c = domain[i];
 
-            // Stop copying if we hit the string's null terminator
             if (c == '\0')
             {
                 safe_filename[i] = '\0';
                 break;
             }
 
-            // SANITIZATION ENGINE: Convert risky filesystem characters to safe underscores
             if (c == '.' || c == '/' || c == ':' || c == '\\')
             {
                 safe_filename[i] = '_';
@@ -72,32 +73,35 @@ public:
                 safe_filename[i] = c;
             }
         }
-        // Explicitly limit the append operation to the exact remaining space on your stack buffer
+
+        // 3. Append safely
         strncat(safe_filename, "_stash.txt", sizeof(safe_filename) - strlen(safe_filename) - 1);
+
         ofstream stash_file(safe_filename, ofstream::out | ofstream::trunc);
         if (!stash_file.is_open())
         {
             cerr << "[-] CRITICAL STORAGE ERROR: Cannot open safe stack filename: " << safe_filename << endl;
             return;
         }
-        else
+
+        stash_file << fixed << setprecision(4);
+        size_t total_rows = data.size();
+        if (total_rows == 0)
+            return;
+        size_t rows_width = data[0].size();
+
+        // 4. Fixed tracking index step loops
+        for (int it = 0; it < total_rows; it++)
         {
-            stash_file << fixed << setprecision(4);
-            size_t total_rows = data.size();
-            size_t rows_width = data[0].size();
-            if (total_rows == 0)
-                return;
-            for (int it = 0; it < total_rows; it++)
+            for (int jt = 0; jt < rows_width; jt++) // Fixed to jt++
             {
-                for (int jt = 0; jt < rows_width; it++)
-                {
-                    stash_file << data[it][jt];
-                    if (jt < rows_width - 1)
-                        stash_file << " ";
-                }
-                stash_file << "\n";
+                stash_file << data[it][jt];
+                if (jt < rows_width - 1)
+                    stash_file << " ";
             }
+            stash_file << "\n";
         }
+
         stash_file.close();
         cout << "[+] SUCCESS: Isolated domain matrix saved to: " << safe_filename << endl;
     }
