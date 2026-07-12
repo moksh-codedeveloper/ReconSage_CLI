@@ -53,40 +53,6 @@ public:
                 out_struct.slow_or_timeout.push_back(ms);
             }
         }
-
-        // 3. Mathematical Mean Calculation (Safely avoiding divide-by-zero)
-        out_struct.mean_latency = latency_list.empty() ? 0.0 : (total_sum / latency_list.size());
-
         return out_struct;
     }
 };
-
-// // Add these public methods inside your LatencyCompiler class:
-
-// double CalculateMean() {
-//     if (latency_list.empty()) return 0.0;
-//     double sum = 0.0;
-//     for (const double& ms : latency_list) sum += ms;
-//     return sum / latency_list.size();
-// }
-
-// double CalculateStdDev(double mean) {
-//     if (latency_list.size() < 2) return 0.0; // Variance requires at least 2 points
-    
-//     double variance_sum = 0.0;
-//     for (const double& ms : latency_list) {
-//         double deviation = ms - mean;
-//         variance_sum += (deviation * deviation); // Deviation squared
-//     }
-    
-//     double variance = variance_sum / latency_list.size();
-//     return sqrt(variance); // Standard Deviation (sigma)
-// }
-
-// // Establishes the dynamic wall where a request transitions from "normal" to "anomalous lag"
-// double CalculateAnomalyThreshold(double mean, double std_dev) {
-//     // Threshold = Mean + (K * StdDev)
-//     // K = 2.0 captures 95% of normal traffic. Anything above this is statistically an anomaly (WAF throttle)
-//     const double K_FACTOR = 2.0; 
-//     return mean + (K_FACTOR * std_dev);
-// }

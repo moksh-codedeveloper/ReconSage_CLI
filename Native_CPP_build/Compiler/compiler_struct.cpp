@@ -22,5 +22,4 @@ struct Latency_Compiler_Struct {
     vector<double> fast_responses;        // Under 200ms (Direct/Good Proxy)
     vector<double> medium_responses;      // 200ms - 1000ms (Average Tor/Proxy hop)
     vector<double> slow_or_timeout;       // Over 1000ms (Lagging or active block)
-    double mean_latency;
 };
