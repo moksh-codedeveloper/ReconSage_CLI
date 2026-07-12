@@ -14,15 +14,15 @@ private:
     vector<string> reason_phrase;
     vector<double> latency_list;
     vector<int> status_code_list;
-    char domain[3072];
+    char domain[256];
 
 public:
-    Reco_novich(vector<string> _reason_phrase, vector<double> latency_arr, vector<int> status_code_arr, char _domain[3072])
+    Reco_novich(vector<string> _reason_phrase, vector<double> latency_arr, vector<int> status_code_arr, char _domain[256])
     {
         reason_phrase = _reason_phrase;
         latency_list = latency_arr;
         status_code_list = status_code_arr;
-        strncpy(domain, _domain, 3072);
+        strncpy(domain, _domain, 256);
     }
 
     vector<vector<double>> Synthesize()
@@ -72,20 +72,28 @@ public:
                 safe_filename[i] = c;
             }
         }
-        strcat(safe_filename, "_stash.txt");
+        // Explicitly limit the append operation to the exact remaining space on your stack buffer
+        strncat(safe_filename, "_stash.txt", sizeof(safe_filename) - strlen(safe_filename) - 1);
         ofstream stash_file(safe_filename, ofstream::out | ofstream::trunc);
-        if(!stash_file.is_open()){
+        if (!stash_file.is_open())
+        {
             cerr << "[-] CRITICAL STORAGE ERROR: Cannot open safe stack filename: " << safe_filename << endl;
             return;
-        } else {
+        }
+        else
+        {
             stash_file << fixed << setprecision(4);
             size_t total_rows = data.size();
             size_t rows_width = data[0].size();
-            if(total_rows == 0) return;
-            for(int it = 0; it < total_rows; it++){
-                for(int jt = 0; jt < rows_width; it++){
+            if (total_rows == 0)
+                return;
+            for (int it = 0; it < total_rows; it++)
+            {
+                for (int jt = 0; jt < rows_width; it++)
+                {
                     stash_file << data[it][jt];
-                    if(jt < rows_width - 1) stash_file << " ";
+                    if (jt < rows_width - 1)
+                        stash_file << " ";
                 }
                 stash_file << "\n";
             }
