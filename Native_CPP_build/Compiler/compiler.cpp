@@ -6,6 +6,10 @@
 #include "status_code_converter.cpp"
 #include <fstream>
 #include <iomanip>
+#include <cstdlib>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <pwd.h>
 using namespace std;
 
 class Reco_novich
@@ -50,50 +54,72 @@ public:
     }
     void save_file(vector<vector<double>> &data)
     {
-        // 1. Initialize the stack array to zero to prevent garbage trailing data
-        char safe_filename[512] = {0};
+        // 1. Fetch the active Linux username dynamically (e.g., "glitch")
+        const char *user_name = getenv("USER");
+        if (!user_name)
+        {
+            user_name = "root"; // Safe fallback mechanism for Linux environments
+        }
 
-        // 2. Bound the reading loop strictly to your 256 array limit
+        // 2. Build the target directory path buffer securely
+        char target_dir[256] = {0};
+        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_Data/", user_name);
+
+#if defined(__linux__) || defined(__APPLE__)
+        mkdir(target_dir, 0755);
+#endif
+
+        char absolute_filepath[512] = {0};
+        strcpy(absolute_filepath, target_dir);
+
+        size_t dir_len = strlen(absolute_filepath);
+
+        // 5. Bound reading loop strictly to extract safe domain identifier
         for (int i = 0; i < 256; ++i)
         {
             char c = domain[i];
 
             if (c == '\0')
             {
-                safe_filename[i] = '\0';
+                absolute_filepath[dir_len + i] = '\0';
                 break;
             }
 
+            // Sanitize punctuation dots or slashes to valid flat naming chars
             if (c == '.' || c == '/' || c == ':' || c == '\\')
             {
-                safe_filename[i] = '_';
+                absolute_filepath[dir_len + i] = '_';
             }
             else
             {
-                safe_filename[i] = c;
+                absolute_filepath[dir_len + i] = c;
             }
         }
 
-        // 3. Append safely
-        strncat(safe_filename, "_stash.txt", sizeof(safe_filename) - strlen(safe_filename) - 1);
+        // 6. Safe suffix alignment inside the stack buffer allocation bounds
+        strncat(absolute_filepath, "_stash.txt", sizeof(absolute_filepath) - strlen(absolute_filepath) - 1);
 
-        ofstream stash_file(safe_filename, ofstream::out | ofstream::trunc);
+        // 7. Establish the file descriptor channel
+        ofstream stash_file(absolute_filepath, ofstream::out | ofstream::trunc);
         if (!stash_file.is_open())
         {
-            cerr << "[-] CRITICAL STORAGE ERROR: Cannot open safe stack filename: " << safe_filename << endl;
+            cerr << "[-] CRITICAL STORAGE ERROR: Cannot open dynamic absolute file path: " << absolute_filepath << endl;
             return;
         }
 
         stash_file << fixed << setprecision(4);
         size_t total_rows = data.size();
         if (total_rows == 0)
+        {
+            stash_file.close();
             return;
+        }
         size_t rows_width = data[0].size();
 
-        // 4. Fixed tracking index step loops
-        for (int it = 0; it < total_rows; it++)
+        // 8. Matrix ingestion loops streaming elements out to disk space
+        for (size_t it = 0; it < total_rows; it++)
         {
-            for (int jt = 0; jt < rows_width; jt++) // Fixed to jt++
+            for (size_t jt = 0; jt < rows_width; jt++)
             {
                 stash_file << data[it][jt];
                 if (jt < rows_width - 1)
@@ -103,6 +129,31 @@ public:
         }
 
         stash_file.close();
-        cout << "[+] SUCCESS: Isolated domain matrix saved to: " << safe_filename << endl;
+        cout << "[+] SUCCESS: Isolated domain matrix saved directly to: " << absolute_filepath << endl;
     }
 };
+
+extern "C"
+{
+    struct DataPacket
+    {
+        char *domain;
+        char **reason_phrase;
+        int *status_code;
+        double *latencies;
+        int total_records;
+    };
+    void compile_telemetry_save_file(DataPacket data_packet)
+    {
+        vector<string> reason_phrase;
+        vector<int> status_code_list(data_packet.status_code, data_packet.status_code + data_packet.total_records);
+        vector<double> latency_list(data_packet.latencies, data_packet.latencies + data_packet.total_records);
+        for (int it = 0; it < data_packet.total_records; it++)
+        {
+            reason_phrase.push_back(data_packet.reason_phrase[it]);
+        }
+        Reco_novich reco(reason_phrase, latency_list, status_code_list, data_packet.domain);
+        vector<vector<double>> sythesized_data = reco.Synthesize();
+        reco.save_file(sythesized_data);
+    }
+}
