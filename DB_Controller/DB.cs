@@ -1,4 +1,3 @@
-using System;
 using DBModel;
 using Microsoft.Data.Sqlite;
 using ReconSageLogger;
@@ -7,45 +6,75 @@ namespace DB
 {
     public class DBModule
     {
+        private string BaseDataDirectory = "ReconSage_Data"; // Central folder for all databases
         private string DBPath = string.Empty;
         private string DBPassword = string.Empty;
-        private string ConnectionString;
+        private string ConnectionString = string.Empty;
+        private string CurrentTargetDomain = string.Empty;
         private Model log;
-        private SqliteConnection connection;
-        public DBModule(string dbPath, string pass, Model modelLog)
+        private SqliteConnection? connection;
+
+        public DBModule(string targetDomain, string pass, Model modelLog)
         {
-            DBPath = dbPath;
             DBPassword = pass;
-            ConnectionString = $"Data Source={DBPath}; Password={DBPassword}";
             log = modelLog;
-            connection = new SqliteConnection(ConnectionString);
+            
+            // Clean the domain string to make it a safe filename (e.g., "google.com")
+            CurrentTargetDomain = targetDomain.Replace("https://", "").Replace("http://", "").Trim('/');
+            
+            // Step 1: Ensure our storage base directory exists on Arch/Linux filesystem
+            if (!Directory.Exists(BaseDataDirectory))
+            {
+                Directory.CreateDirectory(BaseDataDirectory);
+            }
+
+            // Step 2: Solder the dynamic path "ReconSage_Data/google.com.sqlite"
+            DBPath = Path.Combine(BaseDataDirectory, $"{CurrentTargetDomain}.sqlite");
+            
+            // Step 3: Establish the final encrypted or standard connection string
+            ConnectionString = $"Data Source={DBPath}; Password={DBPassword}";
         }
+
+        private void EnsureConnectionInitialized()
+        {
+            if (connection == null)
+            {
+                connection = new SqliteConnection(ConnectionString);
+            }
+        }
+
         public async Task InitializeDB()
         {
-            if (connection.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            
+            // Strict flat schema matching our C++ vector aggregation model
             string createDBModel = @"
                 CREATE TABLE IF NOT EXISTS RequestLogs (
-                Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                Target TEXT,
-                JsonFilePath TEXT,
-                HeadersFile TEXT,
-                WordlistsPath TEXT,
-                ReasonPhrase TEXT,
-                HtmlResponseFile TEXT,
-                StatusCode INTEGER,
-                LatencyMs REAL
-            );
-            ";
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Target TEXT,
+                    JsonFilePath TEXT,
+                    HeadersFile TEXT,
+                    WordlistsPath TEXT,
+                    ReasonPhrase TEXT,
+                    HtmlResponseFile TEXT,
+                    StatusCode INTEGER,
+                    LatencyMs REAL
+                );";
+                
             using var command = new SqliteCommand(createDBModel, connection);
             await command.ExecuteNonQueryAsync();
+            Logger.Info($"[+] Isolated Database Matrix Ready for Target: {CurrentTargetDomain}");
         }
 
         public async Task InsertLogs()
         {
-            if (connection.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            
             string insertSql = @"
-            INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
-            VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
+                INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
+                VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
 
             using var command = new SqliteCommand(insertSql, connection);
             command.Parameters.AddWithValue("$target", log.Target);
@@ -56,20 +85,24 @@ namespace DB
             command.Parameters.AddWithValue("$html", log.HtmlFilePath);
             command.Parameters.AddWithValue("$status", log.StatusCode);
             command.Parameters.AddWithValue("$latency", log.LatencyMs);
+            
             await command.ExecuteNonQueryAsync();
-            Logger.Info("Log entries done successfully");
         }
 
         public async Task<List<Model>> ReadLogs()
         {
-            if (connection.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            
             string selectSql = "SELECT Id, Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs FROM RequestLogs;";
             var logList = new List<Model>();
+            
             using var command = new SqliteCommand(selectSql, connection);
             using var render = await command.ExecuteReaderAsync();
+            
             while (await render.ReadAsync())
             {
-                var log = new Model
+                var rowLog = new Model
                 {
                     Id = render.GetInt32(0),
                     Target = render.IsDBNull(1) ? string.Empty : render.GetString(1),
@@ -81,23 +114,27 @@ namespace DB
                     StatusCode = render.IsDBNull(7) ? 0 : render.GetInt32(7),
                     LatencyMs = render.IsDBNull(8) ? 0.0 : render.GetDouble(8)
                 };
-
-                // Add it to the list
-                logList.Add(log);
+                logList.Add(rowLog);
             }
             return logList;
         }
 
         public async Task ClearLogs()
         {
-            if (connection.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
 
-            // SQLite uses DELETE FROM instead of TRUNCATE
             string deleteQuery = "DELETE FROM RequestLogs; DELETE FROM sqlite_sequence WHERE name='RequestLogs';";
 
             using var command = new SqliteCommand(deleteQuery, connection);
             await command.ExecuteNonQueryAsync();
-            Logger.Info("Logs cleared from your db file....");
+            Logger.Info($"[-] System Wipe Complete: Logs cleared for {CurrentTargetDomain}");
+        }
+
+        // Getter function so your Orchestrator can easily pass the exact path to C++ .so module
+        public string GetDatabaseFilePath()
+        {
+            return Path.GetFullPath(DBPath); // Returns absolute native Linux path
         }
     }
 }
