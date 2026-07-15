@@ -18,10 +18,10 @@ namespace DB
         {
             DBPassword = pass;
             log = modelLog;
-            
+
             // Clean the domain string to make it a safe filename (e.g., "google.com")
             CurrentTargetDomain = targetDomain.Replace("https://", "").Replace("http://", "").Trim('/');
-            
+
             // Step 1: Ensure our storage base directory exists on Arch/Linux filesystem
             if (!Directory.Exists(BaseDataDirectory))
             {
@@ -30,7 +30,7 @@ namespace DB
 
             // Step 2: Solder the dynamic path "ReconSage_Data/google.com.sqlite"
             DBPath = Path.Combine(BaseDataDirectory, $"{CurrentTargetDomain}.sqlite");
-            
+
             // Step 3: Establish the final encrypted or standard connection string
             ConnectionString = $"Data Source={DBPath}; Password={DBPassword}";
         }
@@ -47,7 +47,7 @@ namespace DB
         {
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
-            
+
             // Strict flat schema matching our C++ vector aggregation model
             string createDBModel = @"
                 CREATE TABLE IF NOT EXISTS RequestLogs (
@@ -61,7 +61,7 @@ namespace DB
                     StatusCode INTEGER,
                     LatencyMs REAL
                 );";
-                
+
             using var command = new SqliteCommand(createDBModel, connection);
             await command.ExecuteNonQueryAsync();
             Logger.Info($"[+] Isolated Database Matrix Ready for Target: {CurrentTargetDomain}");
@@ -71,7 +71,7 @@ namespace DB
         {
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
-            
+
             string insertSql = @"
                 INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
                 VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
@@ -85,7 +85,7 @@ namespace DB
             command.Parameters.AddWithValue("$html", log.HtmlFilePath);
             command.Parameters.AddWithValue("$status", log.StatusCode);
             command.Parameters.AddWithValue("$latency", log.LatencyMs);
-            
+
             await command.ExecuteNonQueryAsync();
         }
 
@@ -93,13 +93,13 @@ namespace DB
         {
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
-            
+
             string selectSql = "SELECT Id, Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs FROM RequestLogs;";
             var logList = new List<Model>();
-            
+
             using var command = new SqliteCommand(selectSql, connection);
             using var render = await command.ExecuteReaderAsync();
-            
+
             while (await render.ReadAsync())
             {
                 var rowLog = new Model
@@ -136,5 +136,23 @@ namespace DB
         {
             return Path.GetFullPath(DBPath); // Returns absolute native Linux path
         }
+        public async Task<CompilerDataModel> CompilerDataQuery()
+        {
+            EnsureConnectionInitialized();
+            if(connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            CompilerDataModel dataModel = new CompilerDataModel();
+            dataModel.Domain = CurrentTargetDomain;
+            string sqlCommand = "SELECT ReasonPhrase, StatusCode, LatencyMs from RequestLogs;";
+            using var command = new SqliteCommand(sqlCommand, connection);
+            using var render = await command.ExecuteReaderAsync();
+            while(await render.ReadAsync())
+            {
+                dataModel.ReasonPhrase.Add(render.IsDBNull(0) ? string.Empty : render.GetString(0));
+                dataModel.StatusCodes.Add(render.IsDBNull(1) ? 0 : render.GetInt32(1));
+                dataModel.LatencyList.Add(render.IsDBNull(2) ? 0.0 : render.GetDouble(2));
+            }
+            return dataModel;
+        }
     }
+
 }

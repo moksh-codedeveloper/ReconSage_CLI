@@ -12,4 +12,13 @@ namespace DBModel
         public int StatusCode{set;get;}
         public double LatencyMs{set;get;}
     }
+
+    public class CompilerDataModel
+    {
+        public List<string> ReasonPhrase = new();
+        public string Domain = string.Empty;
+        public List<double> LatencyList = new();
+        public List<int> StatusCodes = new();
+    }
+
 }
