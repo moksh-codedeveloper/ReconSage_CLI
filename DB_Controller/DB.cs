@@ -1,12 +1,38 @@
 using DBModel;
 using Microsoft.Data.Sqlite;
 using ReconSageLogger;
+using System.IO;
 
 namespace DB
 {
     public class DBModule
     {
-        private string BaseDataDirectory = "ReconSage_Data"; // Central folder for all databases
+        private static string GetLinuxHomeDirectory()
+        {
+            // 1. Try standard .NET API (checks env, then /etc/passwd)
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+            // 2. Fallback to OS environment variable
+            if (string.IsNullOrEmpty(home))
+            {
+                home = Environment.GetEnvironmentVariable("HOME") ?? "";
+            }
+
+            // 3. Fallback for specific minimal root environments
+            if (string.IsNullOrEmpty(home) && Environment.UserName == "root")
+            {
+                home = "/root";
+            }
+
+            // 4. Ultimate fallback if everything else fails
+            if (string.IsNullOrEmpty(home))
+            {
+                throw new InvalidOperationException("Could not determine the home directory.");
+            }
+
+            return home;
+        }
+        private string BaseDataDirectory = $"{GetLinuxHomeDirectory}/ReconSage_Data"; // Central folder for all databases
         private string DBPath = string.Empty;
         private string DBPassword = string.Empty;
         private string ConnectionString = string.Empty;
@@ -139,13 +165,13 @@ namespace DB
         public async Task<CompilerDataModel> CompilerDataQuery()
         {
             EnsureConnectionInitialized();
-            if(connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
             CompilerDataModel dataModel = new CompilerDataModel();
             dataModel.Domain = CurrentTargetDomain;
             string sqlCommand = "SELECT ReasonPhrase, StatusCode, LatencyMs from RequestLogs;";
             using var command = new SqliteCommand(sqlCommand, connection);
             using var render = await command.ExecuteReaderAsync();
-            while(await render.ReadAsync())
+            while (await render.ReadAsync())
             {
                 dataModel.ReasonPhrase.Add(render.IsDBNull(0) ? string.Empty : render.GetString(0));
                 dataModel.StatusCodes.Add(render.IsDBNull(1) ? 0 : render.GetInt32(1));
