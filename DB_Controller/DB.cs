@@ -7,7 +7,8 @@ namespace DB
 {
     public class DBModule
     {
-        private static string GetLinuxHomeDirectory()
+        private string BaseDataDirectory; // Central folder for all databases
+        public string GetLinuxHomeDirectory()
         {
             // 1. Try standard .NET API (checks env, then /etc/passwd)
             string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -32,18 +33,16 @@ namespace DB
 
             return home;
         }
-        private string BaseDataDirectory = $"{GetLinuxHomeDirectory}/ReconSage_Data"; // Central folder for all databases
         private string DBPath = string.Empty;
         private string DBPassword = string.Empty;
         private string ConnectionString = string.Empty;
         private string CurrentTargetDomain = string.Empty;
-        private Model log;
         private SqliteConnection? connection;
 
-        public DBModule(string targetDomain, string pass, Model modelLog)
+        public DBModule(string targetDomain, string pass)
         {
             DBPassword = pass;
-            log = modelLog;
+            BaseDataDirectory = $"{GetLinuxHomeDirectory()}/ReconSage_Data";
 
             // Clean the domain string to make it a safe filename (e.g., "google.com")
             CurrentTargetDomain = targetDomain.Replace("https://", "").Replace("http://", "").Trim('/');
@@ -93,7 +92,7 @@ namespace DB
             Logger.Info($"[+] Isolated Database Matrix Ready for Target: {CurrentTargetDomain}");
         }
 
-        public async Task InsertLogs()
+        public async Task InsertLogs(Model log)
         {
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
@@ -158,7 +157,7 @@ namespace DB
         }
 
         // Getter function so your Orchestrator can easily pass the exact path to C++ .so module
-        public string GetDatabaseFilePath()
+        private string GetDatabaseFilePath()
         {
             return Path.GetFullPath(DBPath); // Returns absolute native Linux path
         }

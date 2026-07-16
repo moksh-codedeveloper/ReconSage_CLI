@@ -3,20 +3,11 @@ using ReconSageLogger;
 using System.Text.Json;
 using Reco_novich_compiler;
 using DB;
+using System.Text.Json.Serialization;
+using DBModel;
 
 namespace AllFilesWires
 {
-    public class DBPacket
-    {
-        public string Target{set;get;} = string.Empty;
-        public string JsonFilePath {set;get;} = string.Empty;
-        public string HtmlFilePath {set;get;} = string.Empty;
-        public string HeadersFile{set;get;} = string.Empty;
-        public string WordlistsPath{set;get;} = string.Empty;
-        public string ReasonPhrase {set;get;} = string.Empty;
-        public int StatusCode{set;get;}
-        public double LatencyList{set;get;}
-    }
     public class Wires
     {
         public async Task<MainScanOutput> ReadJson(string jsonFilePath)
@@ -50,8 +41,55 @@ namespace AllFilesWires
             compiler.CompileAndSave();
         }
 
-        public async Task JsonToDBFile()
+        public async Task JsonToDBFile(List<Model> packet, string domain, string password)
         {
+            DBModule dbModule = new DBModule(domain, password);
+            if (!File.Exists($"{dbModule.GetLinuxHomeDirectory()}/ReconSage_Data"))
+            {
+                await dbModule.InitializeDB();
+            }
+            int i = 0;
+            while(i > packet.Count)
+            {
+                await dbModule.InsertLogs(packet[i]);
+                i++;
+            }
+            Logger.Done("Initiazilation of DB completed.....");
+        }
+
+        public async Task<CompilerDataModel> DBToCompiler(string domain, string password)
+        {
+            CompilerDataModel model;
+            DBModule db = new DBModule(domain, password);
+            model = await db.CompilerDataQuery();
+            return model;
+        }
+        public async Task WriteToJsonAsync<T>(T data, string filePath)
+        {
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+            };
+
+            // Handle duplicate file names
+            string directory = Path.GetDirectoryName(filePath) ?? string.Empty;
+            string fileName = Path.GetFileNameWithoutExtension(filePath);
+            string extension = Path.GetExtension(filePath);
+
+            string newFilePath = filePath;
+            int count = 1;
+
+            while (File.Exists(newFilePath))
+            {
+                newFilePath = Path.Combine(directory, $"{fileName}({count}){extension}");
+                count++;
+            }
+
+            var json = JsonSerializer.Serialize(data, options);
+
+            await File.WriteAllTextAsync(newFilePath, json);
+            Logger.Success($"JSON output written to: {newFilePath}");
         }
     }
 }

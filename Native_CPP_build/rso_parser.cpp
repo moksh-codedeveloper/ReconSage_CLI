@@ -19,6 +19,7 @@ namespace RsoParser
         char json_file_name[800];
         char headers_file[800];
         char html_file[800];
+        char db_password[2048];
     };
 
     class Parser
@@ -74,17 +75,23 @@ namespace RsoParser
                 return false;
             return strcmp(dot, ".rso") == 0;
         }
+        bool isPasswordValid(const char *password)
+        {
+            if (!password || password[0] == '\0' || strlen(password) > 127)
+                return false;
+            return true;
+        }
         // Hardened: Directly builds on caller stack frame. No heap allocations used.
-        bool FileParse(parserModel &out_model)
+        void FileParse(parserModel out_model)
         {
             if (!isFileValid())
             {
-                return false;
+                return;
             }
             ifstream file(_fileName);
             if (!file.is_open())
             {
-                return false;
+                return;
             }
 
             // Zero out target memory space natively
@@ -119,12 +126,12 @@ namespace RsoParser
                     {
                         long long val = stoll(value);
                         if (val < 0 || val > 2147483647)
-                            return false;
+                            return;
                         out_model.timeout = static_cast<int>(val);
                     }
                     catch (...)
                     {
-                        return false;
+                        return;
                     }
                 }
                 else if (key == "delay")
@@ -133,46 +140,49 @@ namespace RsoParser
                     {
                         long long val = stoll(value);
                         if (val < 0 || val > 2147483647)
-                            return false;
+                            return;
                         out_model.delay = static_cast<int>(val);
                     }
                     catch (...)
                     {
-                        return false;
+                        return;
                     }
                 }
                 else if (key == "wordlist_path")
                 {
                     if (!isTextFile(value.c_str()))
-                        return false;
+                        return;
                     strncpy(out_model.wordlist_path, value.c_str(), sizeof(out_model.wordlist_path) - 1);
                     out_model.wordlist_path[sizeof(out_model.wordlist_path) - 1] = '\0';
                 }
                 else if (key == "json_file_path") // Kept your exact key lookup
                 {
                     if (!isJsonFile(value.c_str()))
-                        return false;
+                        return;
                     strncpy(out_model.json_file_name, value.c_str(), sizeof(out_model.json_file_name) - 1);
                     out_model.json_file_name[sizeof(out_model.json_file_name) - 1] = '\0';
                 }
                 else if (key == "headers_file")
                 {
                     if (!isTextFile(value.c_str()))
-                        return false;
+                        return;
                     strncpy(out_model.headers_file, value.c_str(), sizeof(out_model.headers_file) - 1);
                     out_model.headers_file[sizeof(out_model.headers_file) - 1] = '\0';
                 }
                 else if (key == "html_file_save")
                 {
-                    if(!isHtmlFile(value.c_str())) return false;
+                    if(!isHtmlFile(value.c_str())) return;
                     else{
                         strncpy(out_model.html_file, value.c_str(), sizeof(out_model.html_file) - 1);
                         out_model.html_file[sizeof(out_model.html_file) - 1] = '\0';
                     }
+                } else if(key == "db_password"){
+                    if(!isPasswordValid(value.c_str())) return;
+                        strncpy(out_model.db_password, value.c_str(), sizeof(out_model.db_password) - 1);
+                        out_model.db_password[sizeof(out_model.db_password) - 1] = '\0';
                 }
             }
             file.close();
-            return true;
         }
     };
 }
@@ -180,12 +190,12 @@ namespace RsoParser
 extern "C"
 {
     // Returns 1 if valid and complete, 0 if verification drops out
-    int parse_config(const char *fileName, RsoParser::parserModel *out_model)
+    void parse_config(const char *fileName, RsoParser::parserModel out_model)
     {
-        if (!fileName || !out_model)
-            return 0;
+        if (!fileName)
+            return;
         RsoParser::Parser p(fileName);
-        return p.FileParse(*out_model) ? 1 : 0;
+        p.FileParse(out_model);
     }
 
     // free_module is no longer needed or exported!
