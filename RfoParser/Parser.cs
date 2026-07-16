@@ -30,7 +30,7 @@ namespace TorConfigParser
     {
         // P/Invoke bridge updated to handle stack allocation via "out" keyword
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int parse_rfo(string filename, out CppParserConfig outConfig);
+        private static extern CppParserConfig parse_rfo(string filename);
 
         // free_parser is completely removed since memory is allocated on the C# stack frame!
 
@@ -43,15 +43,7 @@ namespace TorConfigParser
 
         private CppParserConfig ParseViaCpp()
         {
-            // C++ will directly populate this variable on the stack frame
-            CppParserConfig config;
-
-            int result = parse_rfo(_filepath, out config);
-
-            // If validation cracks or file fails to open, C++ returns 0
-            if (result == 0)
-                throw new Exception("C++ parser failed to parse the .rfo file");
-
+            CppParserConfig config = parse_rfo(_filepath);
             return config;
         }
 

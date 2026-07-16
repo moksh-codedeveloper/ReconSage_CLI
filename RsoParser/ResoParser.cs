@@ -28,7 +28,7 @@ namespace ResoParser
     {
         // P/Invoke bridge updated to handle native execution over the unmanaged stack frame
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int parse_config(string filename, out CppRsoParserConfig outModel);
+        private static extern CppRsoParserConfig parse_config(string filename);
 
         public string RsoFilePath { set; get; } = string.Empty;
 
@@ -43,11 +43,7 @@ namespace ResoParser
             CppRsoParserConfig config;
 
             // Invoking the hardened function; returns 1 on success, 0 on validation error
-            int result = parse_config(RsoFilePath, out config);
-            
-            if (result == 0)
-                throw new Exception("C++ parser failed to parse the .rso file");
-
+            config = parse_config(RsoFilePath);
             return config;
         }
 

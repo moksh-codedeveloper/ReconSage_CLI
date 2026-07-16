@@ -61,9 +61,11 @@ namespace RsoParser
         }
         bool isHtmlFile(const char *html_file)
         {
-            if (!html_file || html_file[0] == '\0' || strlen(html_file) < 5 || strlen(html_file) > 799) return false;
+            if (!html_file || html_file[0] == '\0' || strlen(html_file) < 5 || strlen(html_file) > 799)
+                return false;
             const char *dot = strchr(html_file, '.');
-            if(!dot) return false;
+            if (!dot)
+                return false;
             return strcmp(dot, ".html") == 0;
         }
         bool isFileValid()
@@ -82,20 +84,20 @@ namespace RsoParser
             return true;
         }
         // Hardened: Directly builds on caller stack frame. No heap allocations used.
-        void FileParse(parserModel out_model)
+        parserModel FileParse()
         {
             if (!isFileValid())
             {
-                return;
+                return parserModel();
             }
             ifstream file(_fileName);
             if (!file.is_open())
             {
-                return;
+                return parserModel();
             }
 
             // Zero out target memory space natively
-            memset(&out_model, 0, sizeof(parserModel));
+            parserModel out_model;
             string line;
 
             while (getline(file, line))
@@ -126,12 +128,12 @@ namespace RsoParser
                     {
                         long long val = stoll(value);
                         if (val < 0 || val > 2147483647)
-                            return;
+                            return parserModel();
                         out_model.timeout = static_cast<int>(val);
                     }
                     catch (...)
                     {
-                        return;
+                        return parserModel();
                     }
                 }
                 else if (key == "delay")
@@ -140,63 +142,67 @@ namespace RsoParser
                     {
                         long long val = stoll(value);
                         if (val < 0 || val > 2147483647)
-                            return;
+                            return parserModel();
                         out_model.delay = static_cast<int>(val);
                     }
                     catch (...)
                     {
-                        return;
+                        return parserModel();
                     }
                 }
                 else if (key == "wordlist_path")
                 {
                     if (!isTextFile(value.c_str()))
-                        return;
+                        return parserModel();
                     strncpy(out_model.wordlist_path, value.c_str(), sizeof(out_model.wordlist_path) - 1);
                     out_model.wordlist_path[sizeof(out_model.wordlist_path) - 1] = '\0';
                 }
                 else if (key == "json_file_path") // Kept your exact key lookup
                 {
                     if (!isJsonFile(value.c_str()))
-                        return;
+                        return parserModel();
                     strncpy(out_model.json_file_name, value.c_str(), sizeof(out_model.json_file_name) - 1);
                     out_model.json_file_name[sizeof(out_model.json_file_name) - 1] = '\0';
                 }
                 else if (key == "headers_file")
                 {
                     if (!isTextFile(value.c_str()))
-                        return;
+                        return parserModel();
                     strncpy(out_model.headers_file, value.c_str(), sizeof(out_model.headers_file) - 1);
                     out_model.headers_file[sizeof(out_model.headers_file) - 1] = '\0';
                 }
                 else if (key == "html_file_save")
                 {
-                    if(!isHtmlFile(value.c_str())) return;
-                    else{
+                    if (!isHtmlFile(value.c_str()))
+                        return parserModel();
+                    else
+                    {
                         strncpy(out_model.html_file, value.c_str(), sizeof(out_model.html_file) - 1);
                         out_model.html_file[sizeof(out_model.html_file) - 1] = '\0';
                     }
-                } else if(key == "db_password"){
-                    if(!isPasswordValid(value.c_str())) return;
-                        strncpy(out_model.db_password, value.c_str(), sizeof(out_model.db_password) - 1);
-                        out_model.db_password[sizeof(out_model.db_password) - 1] = '\0';
+                }
+                else if (key == "db_password")
+                {
+                    if (!isPasswordValid(value.c_str()))
+                        return parserModel();
+                    strncpy(out_model.db_password, value.c_str(), sizeof(out_model.db_password) - 1);
+                    out_model.db_password[sizeof(out_model.db_password) - 1] = '\0';
                 }
             }
             file.close();
+            return out_model;
         }
     };
 }
 
 extern "C"
 {
-    // Returns 1 if valid and complete, 0 if verification drops out
-    void parse_config(const char *fileName, RsoParser::parserModel out_model)
+    RsoParser::parserModel parse_config(const char *fileName)
     {
         if (!fileName)
-            return;
+            return RsoParser::parserModel();
         RsoParser::Parser p(fileName);
-        p.FileParse(out_model);
+        RsoParser::parserModel out_config = p.FileParse();
+        return out_config;
     }
-
-    // free_module is no longer needed or exported!
 }
