@@ -69,7 +69,7 @@ namespace AllScansInOne
             await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
         }
 
-        public static async Task ExecCaptureScan(string target, string proto_port, string proxy_host, string jsonFilePath, string wordlistPath, int timeout, int proxy_port, CancellationTokenSource cts, string dns_server)
+        public static async Task ExecCaptureScan(string target, string proto_port, string proxy_host, string htmlFile, string wordlistPath, int timeout, int proxy_port, CancellationTokenSource cts, string dns_server)
         {
             var mainScan = new MainScanResponseBodyModel();
             var capture = new CaptureScan(target, proto_port, proxy_host, dns_server, proxy_port, timeout);
@@ -80,7 +80,7 @@ namespace AllScansInOne
                 var result = capture.Scan(wordlists[i], cts.Token);
                 mainScan.Result.Add(result);
             }
-            new GlobalWires().WriteTextResBody(mainScan, jsonFilePath);
+            new GlobalWires().WriteTextResBody(mainScan, htmlFile);
         }
     }
 }

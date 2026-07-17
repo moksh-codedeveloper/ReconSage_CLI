@@ -137,7 +137,7 @@ namespace ReconSageShell
                             Logger.Scan("Initializing Cpp body capture scan module......");
                             var bodySocksRso = sessionData.RsoConfig!;
                             var bodySocksRfo = sessionData.rfoParsed!;
-                            await AllScans.ExecCaptureScan(bodySocksRfo.Target, bodySocksRfo.Proto_port, bodySocksRfo.tor_ip, bodySocksRso.JsonFilePath, bodySocksRso.WordlistPath, bodySocksRso.Timeout, bodySocksRfo.tor_port, cts, bodySocksRfo.dns_server);
+                            await AllScans.ExecCaptureScan(bodySocksRfo.Target, bodySocksRfo.Proto_port, bodySocksRfo.tor_ip, bodySocksRso.HtmlFile, bodySocksRso.WordlistPath, bodySocksRso.Timeout, bodySocksRfo.tor_port, cts, bodySocksRfo.dns_server);
                             break;
                         case "exit":
                             _isRunning = false;

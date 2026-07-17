@@ -20,5 +20,8 @@ namespace DBModel
         public List<double> LatencyList = new();
         public List<int> StatusCodes = new();
     }
-
+    public class MainModel
+    {
+        public List<Model> packet{set;get;} = new();
+    }
 }

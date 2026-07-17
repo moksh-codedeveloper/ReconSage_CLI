@@ -40,23 +40,6 @@ namespace AllFilesWires
             Reco_novich compiler = new Reco_novich(target, status_code, latency_list, reason_phrase, total_records);
             compiler.CompileAndSave();
         }
-
-        public async Task JsonToDBFile(List<Model> packet, string domain, string password)
-        {
-            DBModule dbModule = new DBModule(domain, password);
-            if (!File.Exists($"{dbModule.GetLinuxHomeDirectory()}/ReconSage_Data"))
-            {
-                await dbModule.InitializeDB();
-            }
-            int i = 0;
-            while(i > packet.Count)
-            {
-                await dbModule.InsertLogs(packet[i]);
-                i++;
-            }
-            Logger.Done("Initiazilation of DB completed.....");
-        }
-
         public async Task<CompilerDataModel> DBToCompiler(string domain, string password)
         {
             CompilerDataModel model;
