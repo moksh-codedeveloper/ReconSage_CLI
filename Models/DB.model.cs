@@ -15,10 +15,11 @@ namespace DBModel
 
     public class CompilerDataModel
     {
-        public List<string> ReasonPhrase = new();
-        public string Domain = string.Empty;
-        public List<double> LatencyList = new();
-        public List<int> StatusCodes = new();
+        public List<string> ReasonPhrase{set;get;} = new();
+        public string Domain{set;get;} = string.Empty;
+        public List<double> LatencyList{set;get;} = new();
+        public List<int> StatusCodes{set;get;} = new();
+        public int TotalRecords{set;get;}
     }
     public class MainModel
     {

@@ -176,6 +176,7 @@ namespace DB
                 dataModel.StatusCodes.Add(render.IsDBNull(1) ? 0 : render.GetInt32(1));
                 dataModel.LatencyList.Add(render.IsDBNull(2) ? 0.0 : render.GetDouble(2));
             }
+            dataModel.TotalRecords = dataModel.StatusCodes.Count();
             return dataModel;
         }
     }

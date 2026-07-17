@@ -6,6 +6,7 @@ using ResoParser;
 using RfoModel;
 using TorConfigParser;
 using Wire;
+using CompilerToDB;
 
 namespace ReconSageShell
 {
@@ -138,6 +139,20 @@ namespace ReconSageShell
                             var bodySocksRso = sessionData.RsoConfig!;
                             var bodySocksRfo = sessionData.rfoParsed!;
                             await AllScans.ExecCaptureScan(bodySocksRfo.Target, bodySocksRfo.Proto_port, bodySocksRfo.tor_ip, bodySocksRso.HtmlFile, bodySocksRso.WordlistPath, bodySocksRso.Timeout, bodySocksRfo.tor_port, cts, bodySocksRfo.dns_server);
+                            break;
+                        case "transfer_json_to_db":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Info("Initializing the DB module and start up will begin soon.....");
+                            var db_rso = sessionData.RsoConfig!;
+                            var db_rfo = sessionData.rfoParsed!;
+                            await JsonToDB.JsonFileToDB(db_rso.JsonFilePath, db_rso.WordlistPath, db_rso.HtmlFile, db_rso.HeadersFile, db_rfo.Target, db_rso.DbPassword);
+                            break;
+                        case "compile_db_and_save":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            Logger.Info("Initializing the Compilation of DB Module.....");
+                            var reco_novich_rso = sessionData.RsoConfig!;
+                            var reco_novich_rfo = sessionData.rfoParsed!;
+                            await JsonToDB.DBToCompilerSave(reco_novich_rfo.Target, reco_novich_rso.DbPassword);
                             break;
                         case "exit":
                             _isRunning = false;

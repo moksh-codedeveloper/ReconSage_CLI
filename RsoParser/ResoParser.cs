@@ -22,6 +22,8 @@ namespace ResoParser
         public string headers_file;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
         public string html_file;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 2048)]
+        public string db_password;
     }
 
     public class RsoParser : IFileParser<RModel>
@@ -58,7 +60,8 @@ namespace ResoParser
                 WordlistPath = data.wordlist_path,
                 Delay = data.delay,
                 HeadersFile = data.headers_file,
-                HtmlFile = data.html_file
+                HtmlFile = data.html_file,
+                DbPassword = data.db_password
             };
         }
     }

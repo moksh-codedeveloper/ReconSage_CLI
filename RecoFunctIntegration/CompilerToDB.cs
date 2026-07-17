@@ -41,5 +41,12 @@ namespace CompilerToDB
             }
             Logger.Done("Insertion of Data from Json to DB file is complete and done");
         }
+        public static async Task DBToCompilerSave(string domain, string password)
+        {
+            DBModule db = new DBModule(domain, password);
+            CompilerDataModel dbModule = await db.CompilerDataQuery();
+            Reco_novich reco_Novich = new Reco_novich(dbModule);
+            reco_Novich.CompileAndSave();
+        }
     }
 }
