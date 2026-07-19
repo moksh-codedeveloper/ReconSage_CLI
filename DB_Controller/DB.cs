@@ -96,13 +96,13 @@ namespace DB
         {
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
-
+            Uri uri = new Uri(log.Target);
             string insertSql = @"
                 INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
                 VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
 
             using var command = new SqliteCommand(insertSql, connection);
-            command.Parameters.AddWithValue("$target", log.Target);
+            command.Parameters.AddWithValue("$target", uri.Host.ToString());
             command.Parameters.AddWithValue("$jsonPath", log.JsonFilePath);
             command.Parameters.AddWithValue("$headers", log.HeadersFile);
             command.Parameters.AddWithValue("$wordlist", log.WordlistsPath);
