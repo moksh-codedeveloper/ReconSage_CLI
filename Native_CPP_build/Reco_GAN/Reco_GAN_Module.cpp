@@ -11,11 +11,13 @@ class Reco_GAN
 {
 private:
     char domain[256];
+    double k_factor;
 
 public:
-    Reco_GAN(char _domain[256])
+    Reco_GAN(char _domain[256], double _k_factor)
     {
         strncpy(domain, _domain, 256);
+        k_factor = _k_factor;
     }
     vector<TelemetryTensor> FileToCompile(const char *file_name_path)
     {
@@ -49,6 +51,9 @@ public:
     {
         TelemetryProcessedData data;
         size_t total_rows = dataset.size();
+        data.status_code.reserve(total_rows);
+        data.latency.reserve(total_rows);
+        data.char_tokens.reserve(total_rows);
         if (total_rows == 0)
             return data;
         for (const auto &item : dataset)
@@ -75,7 +80,7 @@ public:
             status_variance += (val - status_code.status_lat_mean) * (val - status_code.status_lat_mean);
         }
         status_code.status_lat_stddev = sqrt(status_variance / total_rows);
-        status_code.status_lat_thresholds = status_code.status_lat_mean + (3.0 * status_code.status_lat_stddev);
+        status_code.status_lat_thresholds = status_code.status_lat_mean + (k_factor * status_code.status_lat_stddev);
         return status_code;
     }
     StatusCodeAndLatML LatencyCalc(vector<double> &latency_dataset)
@@ -92,7 +97,61 @@ public:
         for (const double &val : latency_dataset)
             latency_variance += (val - latency_profile.status_lat_mean) * (val - latency_profile.status_lat_mean);
         latency_profile.status_lat_stddev = sqrt(latency_variance / total_rows);
-        latency_profile.status_lat_thresholds = latency_profile.status_lat_mean + (3.0 * latency_profile.status_lat_stddev);
+        latency_profile.status_lat_thresholds = latency_profile.status_lat_mean + (k_factor * latency_profile.status_lat_stddev);
         return latency_profile;
+    }
+
+    TokensML TokensCalc(const vector<vector<double>> &tokens_dataset)
+    {
+        size_t total_rows = tokens_dataset.size();
+        if (total_rows == 0)
+            return TokensML();
+
+        TokensML token_ml;
+        size_t num_cols = tokens_dataset[0].size();
+        token_ml.mean.resize(num_cols, 0.0);
+        token_ml.stddev.resize(num_cols, 0.0);
+        token_ml.thresholds.resize(num_cols, 0.0);
+
+        // 1. Compute Mean
+        for (size_t col = 0; col < num_cols; col++)
+        {
+            double sum = 0.0;
+            for (size_t row = 0; row < total_rows; row++)
+            {
+                sum += tokens_dataset[row][col];
+            }
+            token_ml.mean[col] = sum / total_rows;
+        }
+
+        // 2. Compute Variance & Standard Deviation with Floating-Point Guard
+        const double EPSILON = 1e-12; // Anything smaller than this is mathematically zero
+
+        for (size_t col = 0; col < num_cols; col++)
+        {
+            double variance = 0.0;
+            for (size_t row = 0; row < total_rows; row++)
+            {
+                double diff = tokens_dataset[row][col] - token_ml.mean[col];
+                variance += diff * diff;
+            }
+
+            double raw_stddev = sqrt(variance / total_rows);
+
+            // Snap near-zero floating noise to exact 0.0
+            if (raw_stddev < EPSILON)
+            {
+                token_ml.stddev[col] = 0.0;
+            }
+            else
+            {
+                token_ml.stddev[col] = raw_stddev;
+            }
+
+            // Threshold calculation
+            token_ml.thresholds[col] = token_ml.mean[col] + (k_factor * token_ml.stddev[col]);
+        }
+
+        return token_ml;
     }
 };
