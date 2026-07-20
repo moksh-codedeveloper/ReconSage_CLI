@@ -14,3 +14,15 @@ struct TelemetryProcessedData{
     vector<double> latency;
     vector<vector<double>> char_tokens;
 };
+
+struct StatusCodeAndLatML{
+    double status_lat_mean;
+    double status_lat_stddev;
+    double status_lat_thresholds;
+};
+
+struct TokensML{
+    vector<double> mean;
+    vector<double> stddev;
+    vector<double> thresholds;
+};
