@@ -26,3 +26,15 @@ struct TokensML{
     vector<double> stddev;
     vector<double> thresholds;
 };
+
+struct RecoGAN_Prediction_Module{
+    double mean;
+    double stddev;
+    double z_score;
+};
+
+struct Tokens_Prediction_Module{
+    vector<double> mean;
+    vector<double> stddev;
+    vector<double> z_score;
+};

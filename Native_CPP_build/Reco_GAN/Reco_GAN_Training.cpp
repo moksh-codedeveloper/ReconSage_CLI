@@ -7,14 +7,14 @@
 #include <cmath>
 using namespace std;
 
-class Reco_GAN
+class Reco_GAN_Weights_Calculator
 {
 private:
     char domain[256];
     double k_factor;
 
 public:
-    Reco_GAN(char _domain[256], double _k_factor)
+    Reco_GAN_Weights_Calculator(char _domain[256], double _k_factor)
     {
         strncpy(domain, _domain, 256);
         k_factor = _k_factor;
