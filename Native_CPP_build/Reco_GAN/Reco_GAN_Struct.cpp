@@ -30,11 +30,9 @@ struct TokensML{
 struct RecoGAN_Prediction_Module{
     double mean;
     double stddev;
-    double z_score;
 };
 
-struct Tokens_Prediction_Module{
+struct Reco_GAN_Tokens_Prediction_Module{
     vector<double> mean;
     vector<double> stddev;
-    vector<double> z_score;
 };
