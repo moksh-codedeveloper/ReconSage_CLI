@@ -15,7 +15,7 @@ private:
     char domain[256] = {0};
     char target_dir[256] = {0};
     const char *user = getenv("USER");
-    char absolute_filename[512] = {0};
+    char absolute_filename[768] = {0};
     double k_factor;
     char mean_stddev_reco_gan_target_dir[256] = {0};
     void absolute_filename_domain_sanitization(char absolute_file_name[768])
@@ -323,5 +323,31 @@ public:
         thresholds_status_latency_file << "\n";
         thresholds_status_latency_file.close();
         cout << "I/O done writing....." << endl;
+    }
+    void char_tokens_thresholds_file_writing(TokensML char_tokens_thresholds_data) {
+        char absolute_file_name[768] = {0};
+        absolute_filename_domain_sanitization(absolute_file_name);
+        strncat(absolute_file_name, "_thresholds_char_tokens.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
+        
+        ofstream thresholds_tokens_file(absolute_file_name, ofstream::out | ofstream::trunc);
+        if (!thresholds_tokens_file.is_open()) {
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file " << absolute_file_name << endl;
+            return;
+        }
+
+        if (char_tokens_thresholds_data.thresholds.empty()) {
+            cerr << "[WARNING C++] Token thresholds vector is empty!" << endl;
+            thresholds_tokens_file.close();
+            return;
+        }
+
+        cout << "Writing the thresholds array of char tokens..." << endl;
+        thresholds_tokens_file << fixed << setprecision(4);
+        for (const double &val : char_tokens_thresholds_data.thresholds) {
+            thresholds_tokens_file << val << " ";
+        }
+        thresholds_tokens_file << "\n";
+        thresholds_tokens_file.close();
+        cout << "I/O done writing token thresholds successfully!" << endl;
     }
 };
