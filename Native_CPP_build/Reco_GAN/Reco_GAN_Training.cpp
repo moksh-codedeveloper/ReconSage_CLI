@@ -4,6 +4,7 @@
 #include "Reco_GAN_Struct.cpp"
 #include <iostream>
 #include <fstream>
+#include <iomanip>
 #include <cmath>
 #include <sys/stat.h>
 using namespace std;
@@ -16,39 +17,63 @@ private:
     const char *user = getenv("USER");
     char absolute_filename[512] = {0};
     double k_factor;
-
-public:
-    Reco_GAN_Weights_Calculator(char _domain[256], double _k_factor)
+    char mean_stddev_reco_gan_target_dir[256] = {0};
+    void absolute_filename_domain_sanitization(char absolute_file_name[768])
     {
-        strcpy(domain, _domain);
-        k_factor = _k_factor;
-        if (!user)
-        {
-            user = "root";
-        }
-
-        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_data/", user);
-        strcpy(absolute_filename, target_dir);
-        size_t dir_len = strlen(absolute_filename);
+        strcpy(absolute_file_name, mean_stddev_reco_gan_target_dir);
+        size_t mean_stddev_file_dir_len = strlen(absolute_file_name);
         for (int i = 0; i < 256; ++i)
         {
             char c = domain[i];
 
             if (c == '\0')
             {
-                absolute_filename[dir_len + i] = '\0';
+                absolute_file_name[mean_stddev_file_dir_len + i] = '\0';
                 break;
             }
 
             // Sanitize punctuation dots or slashes to valid flat naming chars
             if (c == '.' || c == '/' || c == ':' || c == '\\')
             {
-                absolute_filename[dir_len + i] = '_';
+                absolute_file_name[mean_stddev_file_dir_len + i] = '_';
             }
             else
             {
-                absolute_filename[dir_len + i] = c;
+                absolute_file_name[mean_stddev_file_dir_len + i] = c;
             }
+        }
+    }
+
+public:
+    Reco_GAN_Weights_Calculator(char _domain[256], double _k_factor)
+    {
+        strncpy(domain, _domain, 255);
+        domain[255] = '\0';
+        k_factor = _k_factor;
+        if (!user)
+            user = "root";
+
+        // 1. Setup output directory string first!
+        snprintf(mean_stddev_reco_gan_target_dir, sizeof(mean_stddev_reco_gan_target_dir), "/home/%s/Reco_GAN_Data/", user);
+
+#if defined(__linux__) || defined(__APPLE__)
+        mkdir(mean_stddev_reco_gan_target_dir, 0755);
+#endif
+
+        // 2. Build stash input file path cleanly (/home/user/Reco_novich_data/example_com_stash.txt)
+        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_data/", user);
+        strcpy(absolute_filename, target_dir);
+        size_t dir_len = strlen(absolute_filename);
+
+        for (int i = 0; i < 256; ++i)
+        {
+            char c = domain[i];
+            if (c == '\0')
+            {
+                absolute_filename[dir_len + i] = '\0';
+                break;
+            }
+            absolute_filename[dir_len + i] = (c == '.' || c == '/' || c == ':' || c == '\\') ? '_' : c;
         }
         strncat(absolute_filename, "_stash.txt", sizeof(absolute_filename) - strlen(absolute_filename) - 1);
     }
@@ -98,92 +123,28 @@ public:
         }
         return data;
     }
-    StatusCodeAndLatML StatusCodeCalc(vector<double> &status_code_dataset)
+    StatusCodeAndLatML StatusCodeCalc(RecoGAN_Prediction_Module status_code_mean_stddev_data)
     {
         StatusCodeAndLatML status_code;
-        double status_sum = 0.0;
-        size_t total_rows = status_code_dataset.size();
-        if (total_rows == 0)
-            return StatusCodeAndLatML();
-        for (const double &val : status_code_dataset)
-            status_sum += val;
-        status_code.status_lat_mean = status_sum / total_rows;
-        double status_variance = 0.0;
-        for (const double &val : status_code_dataset)
-        {
-            status_variance += (val - status_code.status_lat_mean) * (val - status_code.status_lat_mean);
-        }
-        status_code.status_lat_stddev = sqrt(status_variance / total_rows);
-        status_code.status_lat_thresholds = status_code.status_lat_mean + (k_factor * status_code.status_lat_stddev);
+        status_code.status_lat_thresholds = status_code_mean_stddev_data.mean + (k_factor * status_code_mean_stddev_data.stddev);
         return status_code;
     }
-    StatusCodeAndLatML LatencyCalc(vector<double> &latency_dataset)
+    StatusCodeAndLatML LatencyCalc(RecoGAN_Prediction_Module latency_mean_stddev_data)
     {
-        size_t total_rows = latency_dataset.size();
-        if (total_rows == 0)
-            return StatusCodeAndLatML();
         StatusCodeAndLatML latency_profile;
-        double latency_sum = 0.0;
-        double latency_variance = 0.0;
-        for (const double &val : latency_dataset)
-            latency_sum += val;
-        latency_profile.status_lat_mean = latency_sum / total_rows;
-        for (const double &val : latency_dataset)
-            latency_variance += (val - latency_profile.status_lat_mean) * (val - latency_profile.status_lat_mean);
-        latency_profile.status_lat_stddev = sqrt(latency_variance / total_rows);
-        latency_profile.status_lat_thresholds = latency_profile.status_lat_mean + (k_factor * latency_profile.status_lat_stddev);
+        latency_profile.status_lat_thresholds = latency_mean_stddev_data.mean + (k_factor * latency_mean_stddev_data.stddev);
         return latency_profile;
     }
 
-    TokensML TokensCalc(const vector<vector<double>> &tokens_dataset)
+    TokensML TokensCalc(Reco_GAN_Tokens_Prediction_Module tokens_mean_stddev_data)
     {
-        size_t total_rows = tokens_dataset.size();
-        if (total_rows == 0)
-            return TokensML();
-
         TokensML token_ml;
-        size_t num_cols = tokens_dataset[0].size();
-        token_ml.mean.resize(num_cols, 0.0);
-        token_ml.stddev.resize(num_cols, 0.0);
+        size_t num_cols = tokens_mean_stddev_data.mean.size();
         token_ml.thresholds.resize(num_cols, 0.0);
 
-        // 1. Compute Mean
         for (size_t col = 0; col < num_cols; col++)
         {
-            double sum = 0.0;
-            for (size_t row = 0; row < total_rows; row++)
-            {
-                sum += tokens_dataset[row][col];
-            }
-            token_ml.mean[col] = sum / total_rows;
-        }
-
-        // 2. Compute Variance & Standard Deviation with Floating-Point Guard
-        const double EPSILON = 1e-12; // Anything smaller than this is mathematically zero
-
-        for (size_t col = 0; col < num_cols; col++)
-        {
-            double variance = 0.0;
-            for (size_t row = 0; row < total_rows; row++)
-            {
-                double diff = tokens_dataset[row][col] - token_ml.mean[col];
-                variance += diff * diff;
-            }
-
-            double raw_stddev = sqrt(variance / total_rows);
-
-            // Snap near-zero floating noise to exact 0.0
-            if (raw_stddev < EPSILON)
-            {
-                token_ml.stddev[col] = 0.0;
-            }
-            else
-            {
-                token_ml.stddev[col] = raw_stddev;
-            }
-
-            // Threshold calculation
-            token_ml.thresholds[col] = token_ml.mean[col] + (k_factor * token_ml.stddev[col]);
+            token_ml.thresholds[col] = tokens_mean_stddev_data.mean[col] + (k_factor * tokens_mean_stddev_data.stddev[col]);
         }
 
         return token_ml;
@@ -260,33 +221,107 @@ public:
         }
         return reco_output;
     }
-    void save_status_code_latency_file_mean_stddev(RecoGAN_Prediction_Module status_data, Reco_GAN_Tokens_Prediction_Module tokens_data, RecoGAN_Prediction_Module latency_data)
+
+    void save_status_code_latency_file_mean_stddev(RecoGAN_Prediction_Module status_data, RecoGAN_Prediction_Module latency_data)
     {
-        char mean_stddev_reco_gan_target_dir[256] = {0};
-        char mean_stddev_data_filename[512] = {0};
-        snprintf(mean_stddev_reco_gan_target_dir, sizeof(mean_stddev_reco_gan_target_dir), "/home/%s/Reco_GAN_Data/", user);
-        strcpy(mean_stddev_data_filename, mean_stddev_reco_gan_target_dir);
-        size_t mean_stddev_file_dir_len = strlen(mean_stddev_data_filename);
-        for (int i = 0; i < 256; ++i)
+        char absolute_file_name[768] = {0};
+        absolute_filename_domain_sanitization(absolute_file_name);
+        strncat(absolute_file_name, "_mean_stddev_of_code_latency.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
+        ofstream mean_stddev_file(absolute_file_name, ofstream::out | ofstream::trunc);
+        if (!mean_stddev_file.is_open())
         {
-            char c = domain[i];
-
-            if (c == '\0')
-            {
-                mean_stddev_data_filename[mean_stddev_file_dir_len + i] = '\0';
-                break;
-            }
-
-            // Sanitize punctuation dots or slashes to valid flat naming chars
-            if (c == '.' || c == '/' || c == ':' || c == '\\')
-            {
-                mean_stddev_data_filename[mean_stddev_file_dir_len + i] = '_';
-            }
-            else
-            {
-                mean_stddev_data_filename[mean_stddev_file_dir_len + i] = c;
-            }
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file" << absolute_file_name << endl;
+            return;
         }
-        strncat(mean_stddev_data_filename, "_mean_stddev_of_code_latency.txt", sizeof(mean_stddev_data_filename) - strlen(mean_stddev_data_filename) - 1);
+        mean_stddev_file << fixed << setprecision(4);
+        vector<double> status_code_mean_stddev_data;
+        status_code_mean_stddev_data.push_back(status_data.mean);
+        status_code_mean_stddev_data.push_back(status_data.stddev);
+        vector<double> latency_mean_stddev_data;
+        latency_mean_stddev_data.push_back(latency_data.mean);
+        latency_mean_stddev_data.push_back(latency_data.stddev);
+        size_t status_data_size = status_code_mean_stddev_data.size();
+        size_t latency_data_size = latency_mean_stddev_data.size();
+        if (status_data_size == 0)
+        {
+            cerr << "There is no data to write in the file......" << endl;
+            mean_stddev_file.close();
+            return;
+        }
+        for (const double &data : status_code_mean_stddev_data)
+        {
+            mean_stddev_file << data;
+            mean_stddev_file << " ";
+        }
+        mean_stddev_file << "\n";
+        if (latency_data_size == 0)
+        {
+            cerr << "There is no data to write in the file......" << endl;
+            mean_stddev_file.close();
+            return;
+        }
+        for (const double &data : latency_mean_stddev_data)
+        {
+            mean_stddev_file << data;
+            mean_stddev_file << " ";
+        }
+        mean_stddev_file.close();
+        cout << "File writing done successfully...." << endl;
+    }
+    void char_tokens_mean_stddev_file_data(Reco_GAN_Tokens_Prediction_Module &char_tokens_data)
+    {
+        char absolute_file_name[768] = {0};
+        absolute_filename_domain_sanitization(absolute_file_name);
+        strncat(absolute_file_name, "_mean_stddev_of_char_tokens.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
+        ofstream mean_stddev_file(absolute_file_name, ofstream::out | ofstream::trunc);
+        if (!mean_stddev_file.is_open())
+        {
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file" << absolute_file_name << endl;
+            return;
+        }
+        vector<double> char_tokens_mean = char_tokens_data.mean;
+        vector<double> char_tokens_stddev = char_tokens_data.stddev;
+        if (char_tokens_mean.size() == 0 || char_tokens_stddev.size() == 0)
+        {
+            cerr << "The vectors are empty hence no data to write in the file" << endl;
+            mean_stddev_file.close();
+            return;
+        }
+        cout << "Writing mean of char tokens data vector..." << endl;
+        for (const double &data : char_tokens_mean)
+        {
+            mean_stddev_file << data;
+            mean_stddev_file << " ";
+        }
+        mean_stddev_file << "\n";
+        cout << "Writing the stddev data of char tokens from vector....." << endl;
+        for (const double &data : char_tokens_stddev)
+        {
+            mean_stddev_file << data;
+            mean_stddev_file << " ";
+        }
+        mean_stddev_file.close();
+        cout << "I/O ops done successfully now go ahead and take a glass of coffee training data calculated from model is saved...." << endl;
+    }
+
+    void status_code_latency_thresholds_file_writing(StatusCodeAndLatML status_code_thresholds_data, StatusCodeAndLatML latency_thresholds_data)
+    {
+        char absolute_file_name[768] = {0};
+        absolute_filename_domain_sanitization(absolute_file_name);
+        strncat(absolute_file_name, "_thresholds_status_code_latency.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
+        ofstream thresholds_status_latency_file(absolute_file_name, ofstream::out | ofstream::trunc);
+
+        if (!thresholds_status_latency_file.is_open())
+        {
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file" << absolute_file_name << endl;
+            return;
+        }
+        cout << "Writing the thresholds data of status code and latency...." << endl;
+        thresholds_status_latency_file << status_code_thresholds_data.status_lat_thresholds;
+        thresholds_status_latency_file << "\n";
+        thresholds_status_latency_file << latency_thresholds_data.status_lat_thresholds;
+        thresholds_status_latency_file << "\n";
+        thresholds_status_latency_file.close();
+        cout << "I/O done writing....." << endl;
     }
 };
