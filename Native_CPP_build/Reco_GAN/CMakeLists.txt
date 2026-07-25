@@ -10,5 +10,5 @@ add_library(reconsage SHARED
 set_target_properties(reconsage PROPERTIES
     OUTPUT_NAME "_cpp_module"
     PREFIX "reco_gan_ml_module"
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../bin/Debug/net10.0"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../../bin/Debug/net10.0"
 )

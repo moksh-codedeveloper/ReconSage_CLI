@@ -18,9 +18,9 @@ private:
     char absolute_filename[768] = {0};
     double k_factor;
     char mean_stddev_reco_gan_target_dir[256] = {0};
-    void absolute_filename_domain_sanitization(char absolute_file_name[768])
+    void absolute_filename_domain_sanitization(char absolute_file_name[768], char target_dir[256])
     {
-        strcpy(absolute_file_name, mean_stddev_reco_gan_target_dir);
+        strcpy(absolute_file_name, target_dir);
         size_t mean_stddev_file_dir_len = strlen(absolute_file_name);
         for (int i = 0; i < 256; ++i)
         {
@@ -62,19 +62,7 @@ public:
 
         // 2. Build stash input file path cleanly (/home/user/Reco_novich_data/example_com_stash.txt)
         snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_data/", user);
-        strcpy(absolute_filename, target_dir);
-        size_t dir_len = strlen(absolute_filename);
-
-        for (int i = 0; i < 256; ++i)
-        {
-            char c = domain[i];
-            if (c == '\0')
-            {
-                absolute_filename[dir_len + i] = '\0';
-                break;
-            }
-            absolute_filename[dir_len + i] = (c == '.' || c == '/' || c == ':' || c == '\\') ? '_' : c;
-        }
+        absolute_filename_domain_sanitization(absolute_filename, target_dir);
         strncat(absolute_filename, "_stash.txt", sizeof(absolute_filename) - strlen(absolute_filename) - 1);
     }
 
@@ -225,7 +213,7 @@ public:
     void save_status_code_latency_file_mean_stddev(RecoGAN_Prediction_Module status_data, RecoGAN_Prediction_Module latency_data)
     {
         char absolute_file_name[768] = {0};
-        absolute_filename_domain_sanitization(absolute_file_name);
+        absolute_filename_domain_sanitization(absolute_file_name, mean_stddev_reco_gan_target_dir);
         strncat(absolute_file_name, "_mean_stddev_of_code_latency.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
         ofstream mean_stddev_file(absolute_file_name, ofstream::out | ofstream::trunc);
         if (!mean_stddev_file.is_open())
@@ -271,7 +259,7 @@ public:
     void char_tokens_mean_stddev_file_data(Reco_GAN_Tokens_Prediction_Module &char_tokens_data)
     {
         char absolute_file_name[768] = {0};
-        absolute_filename_domain_sanitization(absolute_file_name);
+        absolute_filename_domain_sanitization(absolute_file_name, mean_stddev_reco_gan_target_dir);
         strncat(absolute_file_name, "_mean_stddev_of_char_tokens.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
         ofstream mean_stddev_file(absolute_file_name, ofstream::out | ofstream::trunc);
         if (!mean_stddev_file.is_open())
@@ -307,7 +295,7 @@ public:
     void status_code_latency_thresholds_file_writing(StatusCodeAndLatML status_code_thresholds_data, StatusCodeAndLatML latency_thresholds_data)
     {
         char absolute_file_name[768] = {0};
-        absolute_filename_domain_sanitization(absolute_file_name);
+        absolute_filename_domain_sanitization(absolute_file_name, mean_stddev_reco_gan_target_dir);
         strncat(absolute_file_name, "_thresholds_status_code_latency.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
         ofstream thresholds_status_latency_file(absolute_file_name, ofstream::out | ofstream::trunc);
 
@@ -327,7 +315,7 @@ public:
     void char_tokens_thresholds_file_writing(TokensML char_tokens_thresholds_data)
     {
         char absolute_file_name[768] = {0};
-        absolute_filename_domain_sanitization(absolute_file_name);
+        absolute_filename_domain_sanitization(absolute_file_name, mean_stddev_reco_gan_target_dir);
         strncat(absolute_file_name, "_thresholds_char_tokens.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
 
         ofstream thresholds_tokens_file(absolute_file_name, ofstream::out | ofstream::trunc);
