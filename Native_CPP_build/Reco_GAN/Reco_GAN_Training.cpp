@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 using namespace std;
 
-class Reco_GAN_Weights_Calculator
+class Reco_GAN_Training
 {
 private:
     char domain[256] = {0};
@@ -45,7 +45,7 @@ private:
     }
 
 public:
-    Reco_GAN_Weights_Calculator(char _domain[256], double _k_factor)
+    Reco_GAN_Training(char _domain[256], double _k_factor)
     {
         strncpy(domain, _domain, 255);
         domain[255] = '\0';
@@ -324,18 +324,21 @@ public:
         thresholds_status_latency_file.close();
         cout << "I/O done writing....." << endl;
     }
-    void char_tokens_thresholds_file_writing(TokensML char_tokens_thresholds_data) {
+    void char_tokens_thresholds_file_writing(TokensML char_tokens_thresholds_data)
+    {
         char absolute_file_name[768] = {0};
         absolute_filename_domain_sanitization(absolute_file_name);
         strncat(absolute_file_name, "_thresholds_char_tokens.txt", sizeof(absolute_file_name) - strlen(absolute_file_name) - 1);
-        
+
         ofstream thresholds_tokens_file(absolute_file_name, ofstream::out | ofstream::trunc);
-        if (!thresholds_tokens_file.is_open()) {
+        if (!thresholds_tokens_file.is_open())
+        {
             cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file " << absolute_file_name << endl;
             return;
         }
 
-        if (char_tokens_thresholds_data.thresholds.empty()) {
+        if (char_tokens_thresholds_data.thresholds.empty())
+        {
             cerr << "[WARNING C++] Token thresholds vector is empty!" << endl;
             thresholds_tokens_file.close();
             return;
@@ -343,7 +346,8 @@ public:
 
         cout << "Writing the thresholds array of char tokens..." << endl;
         thresholds_tokens_file << fixed << setprecision(4);
-        for (const double &val : char_tokens_thresholds_data.thresholds) {
+        for (const double &val : char_tokens_thresholds_data.thresholds)
+        {
             thresholds_tokens_file << val << " ";
         }
         thresholds_tokens_file << "\n";
@@ -351,3 +355,32 @@ public:
         cout << "I/O done writing token thresholds successfully!" << endl;
     }
 };
+
+extern "C"
+{
+    void reco_gan_training_data_save(char domain[256], double k_factor)
+    {
+        // Collect compiler data with file name took domain name
+        cout << "[TRAINING C++] Training of the model starts and please try to don't delete the text file generated from the model...." << endl;
+        Reco_GAN_Training reco_gan(domain, k_factor);
+        vector<TelemetryTensor> file_data = reco_gan.FileToCompile();
+        TelemetryProcessedData unpack_data = reco_gan.UnpackData(file_data);
+        vector<double> status_code_data = unpack_data.status_code;
+        vector<double> latency_data = unpack_data.latency;
+        vector<vector<double>> char_tokens_data = unpack_data.char_tokens;
+        // Prepare and calculate the mean stddev and thresholds data for all 3 features status code latency char tokens
+        RecoGAN_Prediction_Module status_code_mean_stddev_data = reco_gan.mean_stddev_status_code_calc(status_code_data);
+        RecoGAN_Prediction_Module latency_mean_stddev_data = reco_gan.mean_stddev_latency_calc(latency_data);
+        Reco_GAN_Tokens_Prediction_Module char_tokens_mean_stddev_data = reco_gan.mean_stddev_char_tokens_calc(char_tokens_data);
+        StatusCodeAndLatML status_code_thresholds_data = reco_gan.StatusCodeCalc(status_code_mean_stddev_data);
+        StatusCodeAndLatML latency_thresholds_data = reco_gan.LatencyCalc(latency_mean_stddev_data);
+        TokensML char_tokens_thresholds_data = reco_gan.TokensCalc(char_tokens_mean_stddev_data);
+        // Save the calculated data prepared from the model
+        cout << "Saving the data from the mean stddev thresholds data....." << endl;
+        reco_gan.save_status_code_latency_file_mean_stddev(status_code_mean_stddev_data, latency_mean_stddev_data);
+        reco_gan.status_code_latency_thresholds_file_writing(status_code_thresholds_data, latency_thresholds_data);
+        reco_gan.char_tokens_mean_stddev_file_data(char_tokens_mean_stddev_data);
+        reco_gan.char_tokens_thresholds_file_writing(char_tokens_thresholds_data);
+        cout << "Done training and saved the metrics in the text file you can find it in the path here :- /home/<username>/Reco_GAN_Data/ with domain name" << endl;
+    }
+}

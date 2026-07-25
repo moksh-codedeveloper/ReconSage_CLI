@@ -4,7 +4,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_library(reconsage SHARED
-    Reco_GAN_Module.cpp
+    Reco_GAN_Training.cpp
 )
 
 set_target_properties(reconsage PROPERTIES
