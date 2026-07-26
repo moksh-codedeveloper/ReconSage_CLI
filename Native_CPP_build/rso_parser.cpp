@@ -20,6 +20,7 @@ namespace RsoParser
         char headers_file[800];
         char html_file[800];
         char db_password[2048];
+        double k_factor;
     };
 
     class Parser
@@ -144,6 +145,17 @@ namespace RsoParser
                         if (val < 0 || val > 2147483647)
                             return parserModel();
                         out_model.delay = static_cast<int>(val);
+                    }
+                    catch (...)
+                    {
+                        return parserModel();
+                    }
+                }else if (key == "k_factor")
+                {
+                    try
+                    {
+                        double val = stod(value);
+                        out_model.k_factor = static_cast<double>(val);
                     }
                     catch (...)
                     {

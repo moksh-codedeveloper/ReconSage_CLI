@@ -7,7 +7,7 @@ using RfoModel;
 using TorConfigParser;
 using Wire;
 using CompilerToDB;
-
+using Reco_GAN_Native;
 namespace ReconSageShell
 {
     public class SessionData
@@ -55,7 +55,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan","start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_save" };
+            string[] commands = {"load_rso", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan","start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_save", "reco_gan_training", "reco_gan_predict"};
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -153,6 +153,19 @@ namespace ReconSageShell
                             var reco_novich_rso = sessionData.RsoConfig!;
                             var reco_novich_rfo = sessionData.rfoParsed!;
                             await JsonToDB.DBToCompilerSave(reco_novich_rfo.Target, reco_novich_rso.DbPassword);
+                            break;
+                        case "reco_gan_training":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            var reco_gan_rso = sessionData.RsoConfig!;
+                            var reco_gan_rfo = sessionData.rfoParsed!;
+                            Reco_GAN reco_GAN = new Reco_GAN(reco_gan_rfo.Target, reco_gan_rso.K_factor);
+                            reco_GAN.Training();
+                            break;
+                        case "reco_gan_predict":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            var reco_gan_predict_rso = sessionData.RsoConfig!;
+                            var reco_gan_predict_rfo = sessionData.rfoParsed!;
+                            Reco_GAN reco_GAN1 = new Reco_GAN(reco_gan_predict_rfo.Target, reco_gan_predict_rso.K_factor);
                             break;
                         case "exit":
                             _isRunning = false;

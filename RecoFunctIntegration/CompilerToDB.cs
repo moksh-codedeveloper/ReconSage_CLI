@@ -21,7 +21,7 @@ namespace CompilerToDB
                 {
                     var model = new Model
                     {
-                        Target = data.Target,
+                        Target = target,
                         WordlistsPath = paths,
                         StatusCode = data.StatusCode,
                         LatencyMs = data.LatencyMS,
