@@ -61,7 +61,7 @@ public:
 #endif
 
         // 2. Build stash input file path cleanly (/home/user/Reco_novich_data/example_com_stash.txt)
-        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_data/", user);
+        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_Data/", user);
         absolute_filename_domain_sanitization(absolute_filename, target_dir);
         strncat(absolute_filename, "_stash.txt", sizeof(absolute_filename) - strlen(absolute_filename) - 1);
     }
