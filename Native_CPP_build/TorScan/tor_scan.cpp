@@ -136,7 +136,7 @@ public:
         int status_code = extract_status_from_buffer(result.headers);
 
         // FIX 2: Corrected validation boundary for error detection
-        if (status_code < 200 || status_code >= 400)
+        if (status_code < 200 || (status_code >= 400 && status_code != 404))
         {
             cout << "[WARNING C++] Bad status target match [" << status_code << "]. Resetting transport line..." << endl;
             if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); ssl = nullptr; }
