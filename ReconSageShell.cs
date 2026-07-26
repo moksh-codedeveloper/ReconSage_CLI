@@ -166,6 +166,7 @@ namespace ReconSageShell
                             var reco_gan_predict_rso = sessionData.RsoConfig!;
                             var reco_gan_predict_rfo = sessionData.rfoParsed!;
                             Reco_GAN reco_GAN1 = new Reco_GAN(reco_gan_predict_rfo.Target, reco_gan_predict_rso.K_factor);
+                            reco_GAN1.Predict();
                             break;
                         case "exit":
                             _isRunning = false;
