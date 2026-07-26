@@ -50,7 +50,7 @@ public:
         {
             user = "root";
         }
-        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_GAN_data/", user);
+        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_GAN_Data/", user);
         snprintf(compiler_target_dir, sizeof(compiler_target_dir), "/home/%s/Reco_novich_Data/", user);
         absolute_filename_domain_sanitization(absolute_filename, compiler_target_dir);
         strncat(absolute_filename, "_stash.txt", sizeof(absolute_filename) - strlen(absolute_filename) - 1);
