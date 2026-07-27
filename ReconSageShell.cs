@@ -8,6 +8,7 @@ using TorConfigParser;
 using Wire;
 using CompilerToDB;
 using Reco_GAN_Native;
+using AllFilesWires;
 namespace ReconSageShell
 {
     public class SessionData
@@ -71,6 +72,7 @@ namespace ReconSageShell
             var sessionData = new SessionData();
             var cts  = new CancellationTokenSource();
             var wires = new GlobalWires();
+            var fileWires = new Wires();
             while (_isRunning)
             {
                 // Custom prompt with Logger
@@ -103,7 +105,7 @@ namespace ReconSageShell
                             Logger.Scan("Initializing C++ Scan Module...");
                             var cppRso = sessionData.RsoConfig!;
                             var cppRfo = sessionData.rfoParsed!;
-                            string cpp_headers = await wires.HeaderTextParser(cppRso.HeadersFile);
+                            string cpp_headers = await fileWires.HeaderTextParser(cppRso.HeadersFile);
                             await AllScans.ExecCppScan(target: cppRfo.Target, port: cppRfo.Proto_port, headers: cpp_headers,
                             timeout: cppRso.Timeout, delay: cppRso.Delay,
                             jsonFilePath: cppRso.JsonFilePath,
@@ -122,7 +124,7 @@ namespace ReconSageShell
                             Logger.Scan("Initializing Http Proxy Scan Module...");
                             var httpRso = sessionData.RsoConfig!;
                             var httpRfo = sessionData.rfoParsed!;
-                            string headers = await wires.HeaderTextParser(httpRso.HeadersFile);
+                            string headers = await fileWires.HeaderTextParser(httpRso.HeadersFile);
                             await AllScans.ExecHttpProxy(httpRfo.Target, httpRfo.Proto_port, httpRfo.tor_ip, headers, httpRso.JsonFilePath, httpRso.WordlistPath, httpRso.Timeout, httpRso.Delay, httpRfo.tor_port, cts);
                             break;
                         case "start_socks_proxy_scan" :
@@ -130,7 +132,7 @@ namespace ReconSageShell
                             Logger.Scan("Initializing Socks Proxy Scan Module....");
                             var socksRso = sessionData.RsoConfig!;
                             var socksRfo = sessionData.rfoParsed!;
-                            string socks_headers = await wires.HeaderTextParser(socksRso.HeadersFile);
+                            string socks_headers = await fileWires.HeaderTextParser(socksRso.HeadersFile);
                             await AllScans.ExecSockProxy(socksRfo.Target, socksRfo.Proto_port, socksRfo.tor_ip, socks_headers, socksRso.JsonFilePath, socksRso.WordlistPath, socksRso.Timeout, socksRfo.tor_port, cts, socksRso.Delay);
                             break;
                         case "start_cpp_body_capture":

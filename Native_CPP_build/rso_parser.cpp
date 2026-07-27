@@ -67,7 +67,7 @@ namespace RsoParser
             const char *dot = strchr(html_file, '.');
             if (!dot)
                 return false;
-            return strcmp(dot, ".html") == 0;
+            return strcmp(dot, ".txt") == 0;
         }
         bool isFileValid()
         {

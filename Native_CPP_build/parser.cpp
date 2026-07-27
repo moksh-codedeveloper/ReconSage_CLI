@@ -64,9 +64,19 @@ namespace RfoParser
             return true;
         }
 
+        bool isFileValid()
+        {
+            if (file_name[0] == '\0' || strlen(file_name) < 5 || strlen(file_name) > 799)
+                return false;
+            const char *dot = strrchr(file_name, '.');
+            if (!dot)
+                return false;
+            return strcmp(dot, ".rso") == 0;
+        }
         // Hardened: Directly populates out_config passed by reference/pointer
         parser FileParse()
         {
+            if(!isFileValid()) return parser();
             ifstream file(file_name);
             if (!file.is_open())
             {

@@ -8,12 +8,14 @@ using Wire;
 using ResponseBodyStruct;
 using Capture;
 using System.Net;
+using AllFilesWires;
 
 namespace AllScansInOne
 {
     public static class AllScans
     {
         public static GlobalWires wires = new GlobalWires();
+        public static Wires file_wires = new Wires();
         public static async Task ExecTorScan(string jsonFilePath, string wordlistPath, string target, string Password, string TorIp,  string Port, int TorPort, int CpTorPort, int Timeout, int Delay, CancellationTokenSource cts)
         {
             var scanOutput = new  MainScanOutput();
@@ -25,7 +27,7 @@ namespace AllScansInOne
                 var result = await torScan.SendAsync(wordlists[i], cts.Token);
                 scanOutput.Result.Add(result);
             }
-            await wires.WriteToJsonAsync<MainScanOutput>(scanOutput, jsonFilePath);
+            await file_wires.WriteToJsonAsync<MainScanOutput>(scanOutput, jsonFilePath);
         }
         public static async Task ExecCppScan(string target, string port, string headers, int timeout, int delay, string jsonFilePath, string wordlistPath, CancellationTokenSource cts, string DNSServer)
         {
@@ -38,7 +40,7 @@ namespace AllScansInOne
                 var result = await cppScan.SendAsync(wordlists[i], cts.Token);
                 mainScan.Result.Add(result);
             }
-            await wires.WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
+            await file_wires.WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
         }
 
         public static async Task ExecHttpProxy(string target, string proto_port, string proxy_host, string headers, string jsonFilePath, string wordlistPath, int timeout, int delay, int proxy_port, CancellationTokenSource cts)
@@ -52,7 +54,7 @@ namespace AllScansInOne
                 var result = await httpProxy.SendAsync(wordlists[it], cts.Token);
                 mainScan.Result.Add(result);
             }
-            await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
+            await file_wires.WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
         }
 
         public static async Task ExecSockProxy(string target, string proto_port, string proxy_host, string headers, string jsonFilePath, string wordlistPath, int timeout, int proxy_port, CancellationTokenSource cts, int delay)
@@ -66,7 +68,7 @@ namespace AllScansInOne
                 var result = await socksProxy.SendAsync(wordlists[it], cts.Token);
                 mainScan.Result.Add(result);
             }
-            await new GlobalWires().WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
+            await file_wires.WriteToJsonAsync<MainScanOutput>(mainScan, jsonFilePath);
         }
 
         public static async Task ExecCaptureScan(string target, string proto_port, string proxy_host, string htmlFile, string wordlistPath, int timeout, int proxy_port, CancellationTokenSource cts, string dns_server)
@@ -80,7 +82,7 @@ namespace AllScansInOne
                 var result = capture.Scan(wordlists[i], cts.Token);
                 mainScan.Result.Add(result);
             }
-            new GlobalWires().WriteTextResBody(mainScan, htmlFile);
+            file_wires.WriteTextResBody(mainScan, htmlFile);
         }
     }
 }
