@@ -6,12 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library(reconsage SHARED
     parser.cpp
     rso_parser.cpp
+    rxo_parser.cpp
 )
-
-find_package(CURL REQUIRED)
-target_link_libraries(reconsage PRIVATE CURL::libcurl)
-
-
 set_target_properties(reconsage PROPERTIES
     OUTPUT_NAME "_cpp_module"
     PREFIX "parser"
