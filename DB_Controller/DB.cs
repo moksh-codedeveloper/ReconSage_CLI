@@ -92,27 +92,47 @@ namespace DB
             Logger.Info($"[+] Isolated Database Matrix Ready for Target: {CurrentTargetDomain}");
         }
 
-        public async Task InsertLogs(Model log)
+        public async Task InsertLogsTransactionAsync(IAsyncEnumerable<Model> logStream)
         {
             EnsureConnectionInitialized();
-            if (connection!.State != System.Data.ConnectionState.Open) { await connection.OpenAsync(); }
+            if (connection!.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
+
+            // Begin single transaction for the entire fuzzing run
+            await using var transaction = await connection.BeginTransactionAsync();
+
             string insertSql = @"
-                INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
-                VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
+        INSERT INTO RequestLogs (Target, JsonFilePath, HeadersFile, WordlistsPath, ReasonPhrase, HtmlResponseFile, StatusCode, LatencyMs) 
+        VALUES ($target, $jsonPath, $headers, $wordlist, $reason, $html, $status, $latency);";
 
-            using var command = new SqliteCommand(insertSql, connection);
-            command.Parameters.AddWithValue("$target", log.Target);
-            command.Parameters.AddWithValue("$jsonPath", log.JsonFilePath);
-            command.Parameters.AddWithValue("$headers", log.HeadersFile);
-            command.Parameters.AddWithValue("$wordlist", log.WordlistsPath);
-            command.Parameters.AddWithValue("$reason", log.ReasonPhrase);
-            command.Parameters.AddWithValue("$html", log.HtmlFilePath);
-            command.Parameters.AddWithValue("$status", log.StatusCode);
-            command.Parameters.AddWithValue("$latency", log.LatencyMs);
+            await using var command = new SqliteCommand(insertSql, connection, (SqliteTransaction)transaction);
 
-            await command.ExecuteNonQueryAsync();
+            var pTarget = command.Parameters.Add("$target", SqliteType.Text);
+            var pJsonPath = command.Parameters.Add("$jsonPath", SqliteType.Text);
+            var pHeaders = command.Parameters.Add("$headers", SqliteType.Text);
+            var pWordlist = command.Parameters.Add("$wordlist", SqliteType.Text);
+            var pReason = command.Parameters.Add("$reason", SqliteType.Text);
+            var pHtml = command.Parameters.Add("$html", SqliteType.Text);
+            var pStatus = command.Parameters.Add("$status", SqliteType.Integer);
+            var pLatency = command.Parameters.Add("$latency", SqliteType.Real);
+
+            await foreach (var log in logStream)
+            {
+                pTarget.Value = log.Target ?? string.Empty;
+                pJsonPath.Value = log.JsonFilePath ?? string.Empty;
+                pHeaders.Value = log.HeadersFile ?? string.Empty;
+                pWordlist.Value = log.WordlistsPath ?? string.Empty;
+                pReason.Value = log.ReasonPhrase ?? string.Empty;
+                pHtml.Value = log.HtmlFilePath ?? string.Empty;
+                pStatus.Value = log.StatusCode;
+                pLatency.Value = log.LatencyMs;
+
+                await command.ExecuteNonQueryAsync();
+            }
+
+            // One single disk flush for all fuzzer results
+            await transaction.CommitAsync();
         }
-
         public async Task<List<Model>> ReadLogs()
         {
             EnsureConnectionInitialized();
@@ -160,23 +180,53 @@ namespace DB
         {
             return Path.GetFullPath(DBPath); // Returns absolute native Linux path
         }
-        public async Task<CompilerDataModel> CompilerDataQuery()
+        public async IAsyncEnumerable<CompilerDataModel> StatusCodeFilter(int StatusCode)
         {
+            CompilerDataModel dataModel = new CompilerDataModel();
             EnsureConnectionInitialized();
             if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
-            CompilerDataModel dataModel = new CompilerDataModel();
-            dataModel.Domain = CurrentTargetDomain;
-            string sqlCommand = "SELECT ReasonPhrase, StatusCode, LatencyMs from RequestLogs;";
+            string sqlCommand = @"
+            SELECT StatusCode, LatencyMs, ReasonPhrase
+            FROM RequestLogs 
+            WHERE StatusCode = @statusCode;
+            ";
+            var parameters = new[] { new SqliteParameter("@statusCode", StatusCode) };
             using var command = new SqliteCommand(sqlCommand, connection);
-            using var render = await command.ExecuteReaderAsync();
-            while (await render.ReadAsync())
+            command.Parameters.AddRange(parameters);
+            var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                dataModel.ReasonPhrase.Add(render.IsDBNull(0) ? string.Empty : render.GetString(0));
-                dataModel.StatusCodes.Add(render.IsDBNull(1) ? 0 : render.GetInt32(1));
-                dataModel.LatencyList.Add(render.IsDBNull(2) ? 0.0 : render.GetDouble(2));
+                dataModel.StatusCodes.Add(reader.IsDBNull(0) ? 0 : reader.GetInt32(0));
+                dataModel.LatencyList.Add(reader.IsDBNull(1) ? 0.0 : reader.GetDouble(1));
+                dataModel.ReasonPhrase.Add(reader.IsDBNull(2) ? string.Empty : reader.GetString(2));
             }
+            dataModel.Domain = CurrentTargetDomain;
             dataModel.TotalRecords = dataModel.StatusCodes.Count();
-            return dataModel;
+            yield return dataModel;
+        }
+        public async IAsyncEnumerable<CompilerDataModel> LatencyFilter(double latency_ms)
+        {
+            CompilerDataModel model = new CompilerDataModel();
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            string sqlCommand = @"
+            SELECT StatusCode, LatencyMs, ReasonPhrase
+            FROM RequestLogs
+            WHERE LatencyMs = @latencyMs;
+            ";
+            var parameters = new[] { new SqliteParameter("@latencyMs", latency_ms) };
+            using var command = new SqliteCommand(sqlCommand, connection);
+            command.Parameters.AddRange(parameters);
+            var readers = await command.ExecuteReaderAsync();
+            while (await readers.ReadAsync())
+            {
+                model.StatusCodes.Add(readers.IsDBNull(0) ? 0 : readers.GetInt32(0));
+                model.LatencyList.Add(readers.IsDBNull(1) ? 0.0 : readers.GetDouble(1));
+                model.ReasonPhrase.Add(readers.IsDBNull(2) ? string.Empty : readers.GetString(2));
+            }
+            model.Domain = CurrentTargetDomain;
+            model.TotalRecords = model.StatusCodes.Count();
+            yield return model;
         }
     }
 

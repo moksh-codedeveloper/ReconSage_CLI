@@ -5,7 +5,6 @@ using ResoModel;
 using ResoParser;
 using RfoModel;
 using TorConfigParser;
-using Wire;
 using CompilerToDB;
 using Reco_GAN_Native;
 using AllFilesWires;
@@ -71,7 +70,6 @@ namespace ReconSageShell
             PrintBanner();
             var sessionData = new SessionData();
             var cts  = new CancellationTokenSource();
-            var wires = new GlobalWires();
             var fileWires = new Wires();
             while (_isRunning)
             {
@@ -99,7 +97,10 @@ namespace ReconSageShell
                             sessionData.LoadRfo(parts[1]);
                             Logger.Success($"RFO Config Loaded from {parts[1]}");
                             break;
-
+                        case "load_rxo":
+                            if(parts.Length < 2) { Logger.Error("Usage: load_rxo <path>"); break; }
+                            
+                            break;
                         case "start_scan_cpp":
                             if (!sessionData.isRsoLoaded || !sessionData.isRfoLoaded) { Logger.Warn("RSO and RFO data not loaded!"); break; }
                             Logger.Scan("Initializing C++ Scan Module...");
@@ -154,7 +155,6 @@ namespace ReconSageShell
                             Logger.Info("Initializing the Compilation of DB Module.....");
                             var reco_novich_rso = sessionData.RsoConfig!;
                             var reco_novich_rfo = sessionData.rfoParsed!;
-                            await JsonToDB.DBToCompilerSave(reco_novich_rfo.Target, reco_novich_rso.DbPassword);
                             break;
                         case "reco_gan_training":
                             if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }

@@ -1,11 +1,6 @@
 using ReconSageLogger;
-using ScanOutputModel;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using ResponseBodyStruct;
 
 namespace Wire
 {

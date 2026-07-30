@@ -12,41 +12,55 @@ namespace CompilerToDB
     {
         public static async Task JsonFileToDB(string jsonFilePath, string wordlistsPath, string htmlResponsePath, string headersFilePath, string target, string password)
         {
-            List<Model> packet = new();
-            MainScanOutput jsonReadOutput = await new Wires().ReadJson(jsonFilePath);
+            var wires = new Wires();
             var wordlists = await new GlobalWires().ProcessWordlist(wordlistsPath);
-            foreach(var data in jsonReadOutput.Result)
-            {
-                foreach(var paths in wordlists)
-                {
-                    var model = new Model
-                    {
-                        Target = target,
-                        WordlistsPath = paths,
-                        StatusCode = data.StatusCode,
-                        LatencyMs = data.LatencyMS,
-                        ReasonPhrase = data.Message,
-                        HeadersFile = headersFilePath,
-                        HtmlFilePath = htmlResponsePath,
-                        JsonFilePath = jsonFilePath
-                    };
-                    packet.Add(model);
-                }
-            }
+
             DBModule dB = new DBModule(target, password);
             await dB.InitializeDB();
-            foreach(var data in packet)
+
+            // 1. Stream items directly from JSON without keeping them in RAM
+            async IAsyncEnumerable<Model> BuildFuzzerLogStream()
             {
-                await dB.InsertLogs(data);
+                await foreach (var data in wires.StreamReadJson(jsonFilePath))
+                {
+                    foreach (var path in wordlists)
+                    {
+                        yield return new Model
+                        {
+                            Target = target,
+                            WordlistsPath = path,
+                            StatusCode = data.StatusCode,
+                            LatencyMs = data.LatencyMS,
+                            ReasonPhrase = data.Message,
+                            HeadersFile = headersFilePath,
+                            HtmlFilePath = htmlResponsePath,
+                            JsonFilePath = jsonFilePath
+                        };
+                    }
+                }
             }
+
+            // 2. Insert all fuzzer logs in a single atomic transaction
+            await dB.InsertLogsTransactionAsync(BuildFuzzerLogStream());
+
             Logger.Done("Insertion of Data from Json to DB file is complete and done");
         }
-        public static async Task DBToCompilerSave(string domain, string password)
+        public static async Task StatusCodeBasedFilterCompile(string domain, string password, int statusCode)
         {
             DBModule db = new DBModule(domain, password);
-            CompilerDataModel dbModule = await db.CompilerDataQuery();
-            Reco_novich reco_Novich = new Reco_novich(dbModule);
-            reco_Novich.CompileAndSave();
+            await foreach (var record in db.StatusCodeFilter(statusCode))
+            {
+                new Reco_novich().CompileAndSave(record);
+            }
+        }
+
+        public static async Task LatencyBasedFilterCompile(string domain, string password, double latency)
+        {
+            DBModule db = new DBModule(domain, password);
+            await foreach (var record in db.LatencyFilter(latency_ms: latency))
+            {
+                new Reco_novich().CompileAndSave(record);
+            }
         }
     }
 }

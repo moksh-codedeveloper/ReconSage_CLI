@@ -8,14 +8,7 @@ namespace Reco_novich_compiler
     {
         [DllImport("reco_novich_compiler_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void compile_telemetry_save_file(CompilerDataPacket data_packet);
-        private CompilerDataModel model;
-
-        public Reco_novich(CompilerDataModel compilerModel)
-        {
-            model = compilerModel;
-        }
-
-        public void CompileAndSave()
+        public void CompileAndSave(CompilerDataModel model)
         {
             CompilerDataPacket packet = new CompilerDataPacket();
 

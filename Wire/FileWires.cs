@@ -10,27 +10,49 @@ namespace AllFilesWires
 {
     public class Wires
     {
-        public async Task<MainScanOutput> ReadJson(string jsonFilePath)
+        private static readonly JsonSerializerOptions JsonOptions = new()
         {
+            PropertyNameCaseInsensitive = true
+        };
+        public async IAsyncEnumerable<ScanOutput> StreamReadJson(string jsonFilePath)
+        {
+            if (!File.Exists(jsonFilePath))
+            {
+                Logger.Error($"[Core 2] File not found: {jsonFilePath}");
+                yield break; // Safely exit stream
+            }
+
+            FileStream? fileStream = null;
+
+            // Step 1: Open the stream safely inside try-catch
             try
             {
-                string jsonString = await File.ReadAllTextAsync(jsonFilePath);
-                MainScanOutput jsonDeserialised = JsonSerializer.Deserialize<MainScanOutput>(jsonString) ?? new MainScanOutput();
-                foreach(var scan in jsonDeserialised.Result)
+                fileStream = File.OpenRead(jsonFilePath);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[Core 2] Failed to open file - {ex.Message}");
+                yield break;
+            }
+
+            // Step 2: Stream using try-finally (allowed with yield return!)
+            try
+            {
+                await foreach (var scan in JsonSerializer.DeserializeAsyncEnumerable<ScanOutput>(fileStream, JsonOptions))
                 {
-                    scan.Message = CleanReasonPhrase(scan.Message);
+                    if (scan != null)
+                    {
+                        scan.Message = CleanReasonPhrase(scan.Message);
+                        yield return scan; // Works perfectly here!
+                    }
                 }
-                return jsonDeserialised;
             }
-            catch (FileNotFoundException ex)
+            finally
             {
-                Logger.Error($"Unexpected Error - {ex.Message}");
-                return new MainScanOutput();
-            }
-            catch (JsonException ex)
-            {
-                Logger.Error($"Unexpected Error - {ex.Message}");
-                return new MainScanOutput();
+                if (fileStream != null)
+                {
+                    await fileStream.DisposeAsync();
+                }
             }
         }
         public async Task<string[]> ProcessWordlist(string wordlistPath)
