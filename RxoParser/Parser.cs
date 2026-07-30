@@ -18,7 +18,7 @@ namespace RxoParser
         [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern RxoStruct rxo_parse(string fileName);
         private string file = string.Empty;
-        Parser(string FileName)
+        public Parser(string FileName)
         {
             file = FileName;
         }

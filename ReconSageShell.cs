@@ -8,14 +8,25 @@ using TorConfigParser;
 using CompilerToDB;
 using Reco_GAN_Native;
 using AllFilesWires;
+using RxoModel;
+using RxoParser;
+using Reco_novich_compiler;
 namespace ReconSageShell
 {
     public class SessionData
     {
         public RModel? RsoConfig { set; get; }
         public RfoParsedModel? rfoParsed { set; get; }
+        public Model? RxoParse {set;get;}
         public bool isRsoLoaded => RsoConfig != null;
         public bool isRfoLoaded => rfoParsed != null;
+        public bool isRxoLoaded => RxoParse != null;
+
+        public void LoadRxo(string filePath)
+        {
+            IFileParser<Model> RxoFileParser = new Parser(filePath);
+            RxoParse = RxoFileParser.ParseDictToModel();
+        }
         public void LoadRso(string filePath)
         {
             IFileParser<RModel> RsoFileParser = new RsoParser(filePath);
@@ -99,7 +110,8 @@ namespace ReconSageShell
                             break;
                         case "load_rxo":
                             if(parts.Length < 2) { Logger.Error("Usage: load_rxo <path>"); break; }
-                            
+                            sessionData.LoadRxo(parts[1]);
+                            Logger.Success($"RXO Config Loaded from {parts[1]}");
                             break;
                         case "start_scan_cpp":
                             if (!sessionData.isRsoLoaded || !sessionData.isRfoLoaded) { Logger.Warn("RSO and RFO data not loaded!"); break; }
@@ -144,27 +156,38 @@ namespace ReconSageShell
                             await AllScans.ExecCaptureScan(bodySocksRfo.Target, bodySocksRfo.Proto_port, bodySocksRfo.tor_ip, bodySocksRso.HtmlFile, bodySocksRso.WordlistPath, bodySocksRso.Timeout, bodySocksRfo.tor_port, cts, bodySocksRfo.dns_server);
                             break;
                         case "transfer_json_to_db":
-                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO and RSO data not loaded!"); break; }
                             Logger.Info("Initializing the DB module and start up will begin soon.....");
                             var db_rso = sessionData.RsoConfig!;
                             var db_rfo = sessionData.rfoParsed!;
-                            await JsonToDB.JsonFileToDB(db_rso.JsonFilePath, db_rso.WordlistPath, db_rso.HtmlFile, db_rso.HeadersFile, db_rfo.Target, db_rso.DbPassword);
+                            var db_rxo = sessionData.RxoParse!;
+                            await JsonToDB.JsonFileToDB(db_rso.JsonFilePath, db_rso.WordlistPath, db_rso.HtmlFile, db_rso.HeadersFile, db_rfo.Target, db_rxo.db_password);
                             break;
-                        case "compile_db_and_save":
-                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                        case "compile_db_and_based_on_status_code_save":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO and RSO data not loaded!"); break; }
                             Logger.Info("Initializing the Compilation of DB Module.....");
                             var reco_novich_rso = sessionData.RsoConfig!;
                             var reco_novich_rfo = sessionData.rfoParsed!;
+                            var reco_novich_rxo = sessionData.RxoParse!;
+                            await JsonToDB.StatusCodeBasedFilterCompile(reco_novich_rfo.Target, reco_novich_rxo.db_password, reco_novich_rxo.status_code);
+                            break;
+                        case "compile_db_and_based_on_latency_save":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO and RSO data not loaded!"); break; }
+                            Logger.Info("Initializing the Compilation of DB Module.....");
+                            var latency_reco_novich_rso = sessionData.RsoConfig!;
+                            var latency_reco_novich_rfo = sessionData.rfoParsed!;
+                            var latency_reco_novich_rxo = sessionData.RxoParse!;
+                            await JsonToDB.StatusCodeBasedFilterCompile(latency_reco_novich_rfo.Target, latency_reco_novich_rxo.db_password, latency_reco_novich_rxo.status_code);
                             break;
                         case "reco_gan_training":
-                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO and RSO data not loaded!"); break; }
                             var reco_gan_rso = sessionData.RsoConfig!;
                             var reco_gan_rfo = sessionData.rfoParsed!;
                             Reco_GAN reco_GAN = new Reco_GAN(reco_gan_rfo.Target, reco_gan_rso.K_factor);
                             reco_GAN.Training();
                             break;
                         case "reco_gan_predict":
-                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
+                            if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO and RSO data not loaded!"); break; }
                             var reco_gan_predict_rso = sessionData.RsoConfig!;
                             var reco_gan_predict_rfo = sessionData.rfoParsed!;
                             Reco_GAN reco_GAN1 = new Reco_GAN(reco_gan_predict_rfo.Target, reco_gan_predict_rso.K_factor);
