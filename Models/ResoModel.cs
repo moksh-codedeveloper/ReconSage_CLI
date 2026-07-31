@@ -9,7 +9,5 @@ namespace ResoModel
 
         public string HeadersFile{set;get;} = string.Empty;
         public string HtmlFile{set;get;} = string.Empty;
-        public string DbPassword{set;get;} = string.Empty;
-        public double K_factor{set;get;}
     }
 }

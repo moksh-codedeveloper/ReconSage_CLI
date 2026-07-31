@@ -19,8 +19,6 @@ namespace RsoParser
         char json_file_name[800];
         char headers_file[800];
         char html_file[800];
-        char db_password[2048];
-        double k_factor;
     };
 
     class Parser
@@ -150,17 +148,6 @@ namespace RsoParser
                     {
                         return parserModel();
                     }
-                }else if (key == "k_factor")
-                {
-                    try
-                    {
-                        double val = stod(value);
-                        out_model.k_factor = static_cast<double>(val);
-                    }
-                    catch (...)
-                    {
-                        return parserModel();
-                    }
                 }
                 else if (key == "wordlist_path")
                 {
@@ -192,13 +179,6 @@ namespace RsoParser
                         strncpy(out_model.html_file, value.c_str(), sizeof(out_model.html_file) - 1);
                         out_model.html_file[sizeof(out_model.html_file) - 1] = '\0';
                     }
-                }
-                else if (key == "db_password")
-                {
-                    if (!isPasswordValid(value.c_str()))
-                        return parserModel();
-                    strncpy(out_model.db_password, value.c_str(), sizeof(out_model.db_password) - 1);
-                    out_model.db_password[sizeof(out_model.db_password) - 1] = '\0';
                 }
             }
             file.close();
