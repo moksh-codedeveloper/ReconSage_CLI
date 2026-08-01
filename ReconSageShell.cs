@@ -10,7 +10,6 @@ using Reco_GAN_Native;
 using AllFilesWires;
 using RxoModel;
 using RxoParser;
-using Reco_novich_compiler;
 namespace ReconSageShell
 {
     public class SessionData
@@ -161,6 +160,7 @@ namespace ReconSageShell
                             var db_rso = sessionData.RsoConfig!;
                             var db_rfo = sessionData.rfoParsed!;
                             var db_rxo = sessionData.RxoParse!;
+                            Logger.Info($"[+] Target :- {db_rfo.Target}");
                             await JsonToDB.JsonFileToDB(db_rso.JsonFilePath, db_rso.WordlistPath, db_rso.HtmlFile, db_rso.HeadersFile, db_rfo.Target, db_rxo.db_password);
                             break;
                         case "compile_db_and_based_on_status_code_save":

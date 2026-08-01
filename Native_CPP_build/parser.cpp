@@ -9,7 +9,7 @@ using namespace std;
 
 namespace RfoParser
 {
-    // Keeping structural C compatibility layout for FFI/PInvoke 
+    // Keeping structural C compatibility layout for FFI/PInvoke
     struct parser
     {
         char target[256];
@@ -27,7 +27,7 @@ namespace RfoParser
         char file_name[700];
 
     public:
-        Parser(const char* _file_name)
+        Parser(const char *_file_name)
         {
             memset(file_name, 0, sizeof(file_name));
             if (_file_name != nullptr)
@@ -71,18 +71,19 @@ namespace RfoParser
             const char *dot = strrchr(file_name, '.');
             if (!dot)
                 return false;
-            return strcmp(dot, ".rso") == 0;
+            return strcmp(dot, ".rfo") == 0;
         }
         // Hardened: Directly populates out_config passed by reference/pointer
         parser FileParse()
         {
-            if(!isFileValid()) return parser();
+            if (!isFileValid())
+                return parser();
             ifstream file(file_name);
             if (!file.is_open())
             {
                 return parser();
             }
-            parser out_config; 
+            parser out_config;
 
             string line;
             while (getline(file, line))
@@ -109,19 +110,25 @@ namespace RfoParser
                 // Strict Validation: If any requirement fails, return false immediately
                 if (key == "target")
                 {
-                    if (!isValidUrl(value.c_str())) return parser();
+                    if (!isValidUrl(value.c_str()))
+                    {
+                        return parser();
+                    }
+                    cout << "[PARSER NATIVE C++ BUILD] Target" << value.c_str() << endl;
                     strncpy(out_config.target, value.c_str(), sizeof(out_config.target) - 1);
                     out_config.target[sizeof(out_config.target) - 1] = '\0';
                 }
                 else if (key == "tor_ip")
                 {
-                    if (!isIpAddress(value.c_str())) return parser();
+                    if (!isIpAddress(value.c_str()))
+                        return parser();
                     strncpy(out_config.tor_ip, value.c_str(), sizeof(out_config.tor_ip) - 1);
                     out_config.tor_ip[sizeof(out_config.tor_ip) - 1] = '\0';
                 }
                 else if (key == "password")
                 {
-                    if (!isPasswordValid(value.c_str())) return parser();
+                    if (!isPasswordValid(value.c_str()))
+                        return parser();
                     strncpy(out_config.password, value.c_str(), sizeof(out_config.password) - 1);
                     out_config.password[sizeof(out_config.password) - 1] = '\0';
                 }
@@ -130,30 +137,40 @@ namespace RfoParser
                     try
                     {
                         long long val = stoll(value);
-                        if (val < 1 || val > 65535) return parser();
+                        if (val < 1 || val > 65535)
+                            return parser();
                         out_config.cp_port = static_cast<uint16_t>(val);
                     }
-                    catch (...) { return parser(); }
+                    catch (...)
+                    {
+                        return parser();
+                    }
                 }
                 else if (key == "tor_port")
                 {
                     try
                     {
                         long long val = stoll(value);
-                        if (val < 1 || val > 65535) return parser();
+                        if (val < 1 || val > 65535)
+                            return parser();
                         out_config.tor_port = static_cast<uint16_t>(val);
                     }
-                    catch (...) { return parser(); }
+                    catch (...)
+                    {
+                        return parser();
+                    }
                 }
                 else if (key == "proto_port")
                 {
-                    if (value.length() > 127) return parser();
+                    if (value.length() > 127)
+                        return parser();
                     strncpy(out_config.proto_port, value.c_str(), sizeof(out_config.proto_port) - 1);
                     out_config.proto_port[sizeof(out_config.proto_port) - 1] = '\0';
-                } 
-                else if(key == "dns_server")
+                }
+                else if (key == "dns_server")
                 {
-                    if (value.length() > 255) return parser();
+                    if (value.length() > 255)
+                        return parser();
                     strncpy(out_config.dns_server, value.c_str(), sizeof(out_config.dns_server) - 1);
                     out_config.dns_server[sizeof(out_config.dns_server) - 1] = '\0';
                 }
@@ -169,8 +186,9 @@ extern "C"
     // Returns 1 (true) if successful, 0 (false) if file open failed or validation cracked
     RfoParser::parser parse_rfo(const char *filename)
     {
-        if (!filename) return RfoParser::parser();
-        
+        if (!filename)
+            return RfoParser::parser();
+
         RfoParser::Parser p(filename);
         RfoParser::parser out_config = p.FileParse();
         return out_config;

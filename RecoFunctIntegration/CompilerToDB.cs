@@ -57,7 +57,7 @@ namespace CompilerToDB
         public static async Task LatencyBasedFilterCompile(string domain, string password, double latency)
         {
             DBModule db = new DBModule(domain, password);
-            await foreach (var record in db.LatencyFilter(latency_ms: latency))
+            await foreach (var record in db.LatencyFilter(latency))
             {
                 new Reco_novich().CompileAndSave(record);
             }

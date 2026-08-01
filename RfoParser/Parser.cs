@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using IParser;
+using ReconSageLogger;
 using RfoModel;
 
 namespace TorConfigParser
@@ -50,7 +51,7 @@ namespace TorConfigParser
         public RfoParsedModel ParseDictToModel()
         {
             CppParserConfig parsed = ParseViaCpp();
-
+            Logger.Info($"[+] Parser config logs here Target :- {parsed.target}");
             RfoParsedModel parsedModel = new RfoParsedModel();
             parsedModel.Target = parsed.target;
             parsedModel.Port = parsed.cp_port;

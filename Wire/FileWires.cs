@@ -19,12 +19,11 @@ namespace AllFilesWires
             if (!File.Exists(jsonFilePath))
             {
                 Logger.Error($"[Core 2] File not found: {jsonFilePath}");
-                yield break; // Safely exit stream
+                yield break;
             }
 
             FileStream? fileStream = null;
 
-            // Step 1: Open the stream safely inside try-catch
             try
             {
                 fileStream = File.OpenRead(jsonFilePath);
@@ -35,15 +34,26 @@ namespace AllFilesWires
                 yield break;
             }
 
-            // Step 2: Stream using try-finally (allowed with yield return!)
             try
             {
-                await foreach (var scan in JsonSerializer.DeserializeAsyncEnumerable<ScanOutput>(fileStream, JsonOptions))
+                // Parse stream into document tree without deserializing all object instances
+                using var doc = await JsonDocument.ParseAsync(fileStream);
+
+                // Grab the 'Result' or 'result' array property from MainScanOutput
+                if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    if (scan != null)
+                    if (doc.RootElement.TryGetProperty("Result", out var resultElement) ||
+                        doc.RootElement.TryGetProperty("result", out resultElement))
                     {
-                        scan.Message = CleanReasonPhrase(scan.Message);
-                        yield return scan; // Works perfectly here!
+                        foreach (var element in resultElement.EnumerateArray())
+                        {
+                            var scan = element.Deserialize<ScanOutput>(JsonOptions);
+                            if (scan != null)
+                            {
+                                scan.Message = CleanReasonPhrase(scan.Message);
+                                yield return scan;
+                            }
+                        }
                     }
                 }
             }
