@@ -114,7 +114,6 @@ namespace RfoParser
                     {
                         return parser();
                     }
-                    cout << "[PARSER NATIVE C++ BUILD] Target" << value.c_str() << endl;
                     strncpy(out_config.target, value.c_str(), sizeof(out_config.target) - 1);
                     out_config.target[sizeof(out_config.target) - 1] = '\0';
                 }
