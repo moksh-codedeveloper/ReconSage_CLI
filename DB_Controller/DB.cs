@@ -42,22 +42,28 @@ namespace DB
         public DBModule(string targetDomain, string pass)
         {
             DBPassword = pass;
-            BaseDataDirectory = $"{GetLinuxHomeDirectory()}/ReconSage_Data";
-
-            // Clean the domain string to make it a safe filename (e.g., "google.com")
+            BaseDataDirectory = Path.Combine(GetLinuxHomeDirectory(), "ReconSage_Data");
             CurrentTargetDomain = targetDomain.Replace("https://", "").Replace("http://", "").Trim('/');
+            DBPath = Path.Combine(BaseDataDirectory, $"{CurrentTargetDomain}.sqlite");
 
-            // Step 1: Ensure our storage base directory exists on Arch/Linux filesystem
             if (!Directory.Exists(BaseDataDirectory))
             {
                 Directory.CreateDirectory(BaseDataDirectory);
             }
 
-            // Step 2: Solder the dynamic path "ReconSage_Data/google.com.sqlite"
-            DBPath = Path.Combine(BaseDataDirectory, $"{CurrentTargetDomain}.sqlite");
+            // Builder handles special characters in passwords cleanly
+            var builder = new SqliteConnectionStringBuilder
+            {
+                DataSource = DBPath,
+                Mode = SqliteOpenMode.ReadWriteCreate
+            };
 
-            // Step 3: Establish the final encrypted or standard connection string
-            ConnectionString = $"Data Source={DBPath}; Password={DBPassword}";
+            if (!string.IsNullOrWhiteSpace(DBPassword))
+            {
+                builder.Password = DBPassword;
+            }
+
+            ConnectionString = builder.ToString();
         }
 
         private void EnsureConnectionInitialized()
@@ -180,54 +186,86 @@ namespace DB
         {
             return Path.GetFullPath(DBPath); // Returns absolute native Linux path
         }
-        public async IAsyncEnumerable<CompilerDataModel> StatusCodeFilter(int StatusCode)
+        public async IAsyncEnumerable<CompilerDataModel> StatusCodeFilter(int statusCode, int chunkSize = 1000)
         {
-            CompilerDataModel dataModel = new CompilerDataModel();
             EnsureConnectionInitialized();
-            if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
+            if (connection!.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
+
             string sqlCommand = @"
-            SELECT StatusCode, LatencyMs, ReasonPhrase
-            FROM RequestLogs 
-            WHERE StatusCode = @statusCode;
-            ";
-            var parameters = new[] { new SqliteParameter("@statusCode", StatusCode) };
+                SELECT StatusCode, LatencyMs, ReasonPhrase
+                FROM RequestLogs 
+                WHERE StatusCode = @statusCode;";
+
             using var command = new SqliteCommand(sqlCommand, connection);
-            command.Parameters.AddRange(parameters);
-            var reader = await command.ExecuteReaderAsync();
+            command.Parameters.AddWithValue("@statusCode", statusCode);
+
+            using var reader = await command.ExecuteReaderAsync();
+
+            var currentChunk = new CompilerDataModel { Domain = CurrentTargetDomain };
+
             while (await reader.ReadAsync())
             {
-                dataModel.StatusCodes.Add(reader.IsDBNull(0) ? 0 : reader.GetInt32(0));
-                dataModel.LatencyList.Add(reader.IsDBNull(1) ? 0.0 : reader.GetDouble(1));
-                dataModel.ReasonPhrase.Add(reader.IsDBNull(2) ? string.Empty : reader.GetString(2));
+                currentChunk.StatusCodes.Add(reader.IsDBNull(0) ? 0 : reader.GetInt32(0));
+                currentChunk.LatencyList.Add(reader.IsDBNull(1) ? 0.0 : reader.GetDouble(1));
+                currentChunk.ReasonPhrase.Add(reader.IsDBNull(2) ? string.Empty : reader.GetString(2));
+
+                // Once the current batch hits chunkSize, yield it and reset for the next batch!
+                if (currentChunk.StatusCodes.Count >= chunkSize)
+                {
+                    currentChunk.TotalRecords = currentChunk.StatusCodes.Count;
+                    yield return currentChunk;
+
+                    // Reset for next mini-batch
+                    currentChunk = new CompilerDataModel { Domain = CurrentTargetDomain };
+                }
             }
-            dataModel.Domain = CurrentTargetDomain;
-            dataModel.TotalRecords = dataModel.StatusCodes.Count();
-            yield return dataModel;
-        }
-        public async IAsyncEnumerable<CompilerDataModel> LatencyFilter(double latency_ms)
-        {
-            CompilerDataModel model = new CompilerDataModel();
-            EnsureConnectionInitialized();
-            if (connection!.State != System.Data.ConnectionState.Open) await connection.OpenAsync();
-            string sqlCommand = @"
-            SELECT StatusCode, LatencyMs, ReasonPhrase
-            FROM RequestLogs
-            WHERE LatencyMs = @latencyMs;
-            ";
-            var parameters = new[] { new SqliteParameter("@latencyMs", latency_ms) };
-            using var command = new SqliteCommand(sqlCommand, connection);
-            command.Parameters.AddRange(parameters);
-            var readers = await command.ExecuteReaderAsync();
-            while (await readers.ReadAsync())
+
+            // Yield any remaining records in the last partial chunk
+            if (currentChunk.StatusCodes.Count > 0)
             {
-                model.StatusCodes.Add(readers.IsDBNull(0) ? 0 : readers.GetInt32(0));
-                model.LatencyList.Add(readers.IsDBNull(1) ? 0.0 : readers.GetDouble(1));
-                model.ReasonPhrase.Add(readers.IsDBNull(2) ? string.Empty : readers.GetString(2));
+                currentChunk.TotalRecords = currentChunk.StatusCodes.Count;
+                yield return currentChunk;
             }
-            model.Domain = CurrentTargetDomain;
-            model.TotalRecords = model.StatusCodes.Count();
-            yield return model;
+        }
+        public async IAsyncEnumerable<CompilerDataModel> LatencyFilter(double latencyMs, int chunkSize = 1000)
+        {
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
+
+            string sqlCommand = @"
+                SELECT StatusCode, LatencyMs, ReasonPhrase
+                FROM RequestLogs
+                WHERE LatencyMs = @latencyMs;";
+
+            using var command = new SqliteCommand(sqlCommand, connection);
+            command.Parameters.AddWithValue("@latencyMs", latencyMs);
+
+            using var reader = await command.ExecuteReaderAsync();
+
+            var currentChunk = new CompilerDataModel { Domain = CurrentTargetDomain };
+
+            while (await reader.ReadAsync())
+            {
+                currentChunk.StatusCodes.Add(reader.IsDBNull(0) ? 0 : reader.GetInt32(0));
+                currentChunk.LatencyList.Add(reader.IsDBNull(1) ? 0.0 : reader.GetDouble(1));
+                currentChunk.ReasonPhrase.Add(reader.IsDBNull(2) ? string.Empty : reader.GetString(2));
+
+                if (currentChunk.StatusCodes.Count >= chunkSize)
+                {
+                    currentChunk.TotalRecords = currentChunk.StatusCodes.Count;
+                    yield return currentChunk;
+
+                    currentChunk = new CompilerDataModel { Domain = CurrentTargetDomain };
+                }
+            }
+
+            if (currentChunk.StatusCodes.Count > 0)
+            {
+                currentChunk.TotalRecords = currentChunk.StatusCodes.Count;
+                yield return currentChunk;
+            }
         }
     }
-
 }
