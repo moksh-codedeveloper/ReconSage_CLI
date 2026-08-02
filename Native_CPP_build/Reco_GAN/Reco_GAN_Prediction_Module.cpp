@@ -6,6 +6,7 @@
 #include <fstream>
 #include <cmath>
 #include <sys/stat.h>
+#include <algorithm>
 using namespace std;
 
 class Reco_GAN_Prediction_Module
@@ -16,9 +17,10 @@ private:
     const char *user = getenv("USER");
     char absolute_filename[768] = {0};
     char compiler_target_dir[256] = {0};
-    void absolute_filename_domain_sanitization(char absolute_file_name[768], char target_dir[256])
+
+    void absolute_filename_domain_sanitization(char absolute_file_name[768], const char *base_dir)
     {
-        strcpy(absolute_file_name, target_dir);
+        strcpy(absolute_file_name, base_dir);
         size_t mean_stddev_file_dir_len = strlen(absolute_file_name);
         for (int i = 0; i < 256; ++i)
         {
@@ -43,9 +45,10 @@ private:
     }
 
 public:
-    Reco_GAN_Prediction_Module(char _domain[256])
+    Reco_GAN_Prediction_Module(const char _domain[256])
     {
-        strcpy(domain, _domain);
+        strncpy(domain, _domain, 255);
+        domain[255] = '\0';
         if (!user)
         {
             user = "root";
@@ -67,17 +70,21 @@ public:
         ifstream file(absolute_filename);
         if (!file.is_open())
         {
-            cerr << "[ERROR C++] Failed to open stash file" << endl;
+            cerr << "[ERROR C++] Failed to open stash file: " << absolute_filename << endl;
             return dataset;
         }
+        
         string line;
         while (getline(file, line))
         {
+            if (line.empty()) continue;
+            
             stringstream ss(line);
             double status_code = 0.0;
             double lat = 0.0;
             if (!(ss >> status_code >> lat))
                 continue;
+            
             vector<double> tokens;
             double tokensValue;
             while (ss >> tokensValue)
@@ -89,6 +96,7 @@ public:
         file.close();
         return dataset;
     }
+
     TelemetryProcessedData UnpackData(const vector<TelemetryTensor> &dataset)
     {
         TelemetryProcessedData data;
@@ -98,6 +106,7 @@ public:
         data.char_tokens.reserve(total_rows);
         if (total_rows == 0)
             return data;
+            
         for (const auto &item : dataset)
         {
             data.status_code.push_back(item.statusCode);
@@ -106,7 +115,8 @@ public:
         }
         return data;
     }
-    vector<double> status_calc_z_score_feature(RecoGAN_Prediction_Module &status_output, vector<double> &live_status_code_dataset)
+
+    vector<double> status_calc_z_score_feature(RecoGAN_Prediction_Module &status_output, const vector<double> &live_status_code_dataset)
     {
         if (status_output.stddev == 0.0)
             return {};
@@ -118,7 +128,8 @@ public:
         }
         return z_score;
     }
-    vector<double> latency_calc_z_score(RecoGAN_Prediction_Module &latency_output, vector<double> &live_latency_dataset)
+
+    vector<double> latency_calc_z_score(RecoGAN_Prediction_Module &latency_output, const vector<double> &live_latency_dataset)
     {
         if (latency_output.stddev == 0.0)
             return {};
@@ -130,46 +141,75 @@ public:
         }
         return z_score;
     }
-    vector<double> char_tokens_z_score(Reco_GAN_Tokens_Prediction_Module &char_tokens_mean_stddev_shared_object, vector<vector<double>> &live_char_tokens_dataset)
+
+    // FIXED: Strict outer checks, column limits, and ragged array checking to prevent libstdc++ assertions
+    vector<double> char_tokens_z_score(Reco_GAN_Tokens_Prediction_Module &char_tokens_mean_stddev_shared_object, const vector<vector<double>> &live_char_tokens_dataset)
     {
+        if (live_char_tokens_dataset.empty())
+            return {};
+
         size_t total_rows = live_char_tokens_dataset.size();
         size_t num_cols = live_char_tokens_dataset[0].size();
-        if (total_rows == 0)
+
+        if (num_cols == 0)
             return {};
-        vector<double> columns_mean_z(num_cols, 0.0);
-        for (size_t col = 0; col < num_cols; col++)
+
+        // Bound-check baseline model parameters against token dimension length
+        size_t safe_cols = min({num_cols, 
+                                char_tokens_mean_stddev_shared_object.mean.size(), 
+                                char_tokens_mean_stddev_shared_object.stddev.size()});
+
+        if (safe_cols == 0)
+            return {};
+
+        vector<double> columns_mean_z(safe_cols, 0.0);
+
+        for (size_t col = 0; col < safe_cols; col++)
         {
             double col_mean = char_tokens_mean_stddev_shared_object.mean[col];
             double col_stddev = char_tokens_mean_stddev_shared_object.stddev[col];
+
             if (col_stddev == 0.0)
             {
                 columns_mean_z[col] = 0.0;
                 continue;
             }
+
             double z_sum = 0.0;
+            size_t valid_rows = 0;
+
             for (size_t row = 0; row < total_rows; row++)
             {
-                double val = live_char_tokens_dataset[row][col];
-                z_sum += (val - col_mean) / col_stddev;
+                // Ensure row has enough columns in case of ragged vectors
+                if (col < live_char_tokens_dataset[row].size())
+                {
+                    double val = live_char_tokens_dataset[row][col];
+                    z_sum += (val - col_mean) / col_stddev;
+                    valid_rows++;
+                }
             }
 
-            columns_mean_z[col] = z_sum / total_rows;
+            if (valid_rows > 0)
+            {
+                columns_mean_z[col] = z_sum / valid_rows;
+            }
         }
         return columns_mean_z;
     }
+
     void extract_mean_stddev_code_latency_data(RecoGAN_Prediction_Module &status_code_shared_obj, RecoGAN_Prediction_Module &latency_shared_obj)
     {
         char mean_stddev_file_name[768] = {0};
         absolute_filename_domain_sanitization(mean_stddev_file_name, target_dir);
         strncat(mean_stddev_file_name, "_mean_stddev_of_code_latency.txt", sizeof(mean_stddev_file_name) - strlen(mean_stddev_file_name) - 1);
+        
         ifstream file(mean_stddev_file_name);
         if (!file.is_open())
         {
-            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file" << mean_stddev_file_name << endl;
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file " << mean_stddev_file_name << endl;
             return;
         }
-        string line1;
-        string line2;
+        string line1, line2;
         if (getline(file, line1))
         {
             stringstream ss(line1);
@@ -182,6 +222,7 @@ public:
         }
         file.close();
     }
+
     void extract_mean_stddev_char_tokens(Reco_GAN_Tokens_Prediction_Module &char_tokens_mean_stddev_shared_object)
     {
         char mean_stddev_char_tokens_file[768] = {0};
@@ -190,7 +231,7 @@ public:
         ifstream file(mean_stddev_char_tokens_file);
         if (!file.is_open())
         {
-            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file" << mean_stddev_char_tokens_file << endl;
+            cerr << "[SYSTEM ERROR C++] CRITICAL SYSTEM ERROR: Not able to open the file " << mean_stddev_char_tokens_file << endl;
             return;
         }
         string line1, line2;
