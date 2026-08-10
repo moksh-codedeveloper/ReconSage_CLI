@@ -58,15 +58,6 @@ namespace RsoParser
                 return false;
             return strcmp(dot, ".txt") == 0;
         }
-        bool isHtmlFile(const char *html_file)
-        {
-            if (!html_file || html_file[0] == '\0' || strlen(html_file) < 5 || strlen(html_file) > 799)
-                return false;
-            const char *dot = strchr(html_file, '.');
-            if (!dot)
-                return false;
-            return strcmp(dot, ".txt") == 0;
-        }
         bool isFileValid()
         {
             if (_fileName[0] == '\0' || strlen(_fileName) < 5 || strlen(_fileName) > 799)
@@ -172,7 +163,7 @@ namespace RsoParser
                 }
                 else if (key == "html_file_save")
                 {
-                    if (!isHtmlFile(value.c_str()))
+                    if (!isTextFile(value.c_str()))
                         return parserModel();
                     else
                     {

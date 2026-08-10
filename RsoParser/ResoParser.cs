@@ -9,15 +9,15 @@ namespace ResoParser
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
     internal struct CppRsoParserConfig
     {
-        public int timeout;  
-        public int delay;    
-        
+        public int timeout;
+        public int delay;
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
         public string wordlist_path;
-        
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
         public string json_file_name;
-        
+
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
         public string headers_file;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 800)]
@@ -50,7 +50,7 @@ namespace ResoParser
         public RModel ParseDictToModel()
         {
             CppRsoParserConfig data = ParseViaModuleCpp();
-            
+
             return new RModel
             {
                 Timeout = data.timeout,
