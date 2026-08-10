@@ -40,7 +40,7 @@ private:
         "request blocked"};
 
 public:
-    Soft_404_Catcher(const char _domain[256], const char _response_body[4096])
+    Soft_404_Catcher(char _domain[256], const char *_response_body)
     {
         strncpy(domain, _domain, 255);
         domain[255] = '\0';

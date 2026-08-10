@@ -10,12 +10,14 @@ namespace ResponseBodyStruct
 
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 3072)]
         public string domain;
+        public int statusCode;
     }
 
     public class ScanResponseBodyModel
     {
         public string target{set;get;} = string.Empty;
         public string bodyResponse{set;get;} = string.Empty;
+        public int statusCode{set;get;}
     }
 
     public class MainScanResponseBodyModel

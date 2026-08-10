@@ -54,6 +54,7 @@ namespace Capture
                 BodyStruct bodyStruct = res_cap_scan(engine, path, ref cancelFlag);
                 result.target = bodyStruct.domain;
                 result.bodyResponse = bodyStruct.captured_body;
+                result.statusCode = bodyStruct.statusCode;
                 Logger.Info($"[Debug C++] Here is your body {bodyStruct.captured_body}");
                 destroy_res_captio_engine(engine);
                 return result;

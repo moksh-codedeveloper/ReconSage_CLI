@@ -5,6 +5,7 @@
 #include <cstring>
 #include "../ReconDNS/TorDomainStack.cpp"
 #include "../ReconDNS/DomainStruct.cpp"
+#include "../Generic_Module/wires.cpp"
 #include <string>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -14,6 +15,7 @@ struct BodyDeCaptioStruct
 {
     char captured_body[4096];
     char domain[3072];
+    int statusCode;
 };
 
 class ReconDeBodyCaptio
@@ -157,6 +159,8 @@ public:
             // Scan the accumulated buff to see if the headers have cleared yet
             if (body_start == nullptr)
             {
+                int statusCode = extract_status_from_buffer(buff);
+                myData.statusCode = statusCode;
                 char *headerEnd = std::strstr(buff, "\r\n\r\n");
                 if (headerEnd != nullptr)
                 {
@@ -235,8 +239,9 @@ extern "C"
     {
         return static_cast<ReconDeBodyCaptio *>(engine)->scan(cancel_flag, path);
     }
-    
-    void destroy_res_captio_engine(void *engine){
+
+    void destroy_res_captio_engine(void *engine)
+    {
         delete static_cast<ReconDeBodyCaptio *>(engine);
     }
 }

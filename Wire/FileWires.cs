@@ -118,7 +118,6 @@ namespace AllFilesWires
                     string directory = Path.GetDirectoryName(outputFilePath) ?? string.Empty;
                     string fileNameWithoutExt = Path.GetFileNameWithoutExtension(outputFilePath);
                     string extension = Path.GetExtension(outputFilePath);
-
                     // Generate a highly precise timestamp layout down to the second
                     string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
@@ -131,22 +130,15 @@ namespace AllFilesWires
                 // Using a StringBuilder to batch file I/O operations efficiently
                 StringBuilder sb = new StringBuilder();
 
-                sb.AppendLine("================================================================================");
-                sb.AppendLine($"[RECONSAGE SCAN ENGINE REPORT]");
-                sb.AppendLine($"TIMESTAMP: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-                sb.AppendLine($"TOTAL CAPTURED PATHS: {mainModel.Result.Count}");
-                sb.AppendLine("================================================================================");
-                sb.AppendLine();
-
                 foreach (var scan in mainModel.Result)
                 {
-                    sb.AppendLine("--------------------------------------------------------------------------------");
-                    sb.AppendLine($"[TARGET]: {scan.target}");
-                    sb.AppendLine("--------------------------------------------------------------------------------");
-
+                    sb.AppendLine($"{scan.target}");
+                    sb.AppendLine("---");
+                    sb.AppendLine($"{scan.statusCode}");
+                    sb.AppendLine("---");
                     if (!string.IsNullOrEmpty(scan.bodyResponse))
                     {
-                        sb.AppendLine(scan.bodyResponse.TrimEnd());
+                        sb.AppendLine(scan.bodyResponse);
                     }
                     else
                     {
@@ -155,10 +147,7 @@ namespace AllFilesWires
 
                     sb.AppendLine(); // Buffer spacing between iterations
                 }
-
-                sb.AppendLine("===========================[ END OF RECON REPORT ]===========================");
                 sb.AppendLine();
-
                 // Write or append the text block natively to the disk filesystem
                 // If you want to append across completely separate command sessions, use File.AppendAllText instead
                 File.WriteAllText(outputFilePath, sb.ToString());
