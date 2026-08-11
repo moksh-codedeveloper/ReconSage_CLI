@@ -39,7 +39,7 @@ public:
         tor_port = _tor_port;
         timeout = _timeout;
         cp_tor_port = _cp_tor_port;
-        
+
         SSL_library_init();
         OpenSSL_add_all_algorithms();
         SSL_load_error_strings();
@@ -49,7 +49,8 @@ public:
     // FIX 3: Added Missing Destructor to prevent OpenSSL context leak
     ~Scan()
     {
-        if (ctx) {
+        if (ctx)
+        {
             SSL_CTX_free(ctx);
             ctx = nullptr;
         }
@@ -58,40 +59,41 @@ public:
     int TorRotation()
     {
         int ctrl_sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (ctrl_sock < 0) return -1;
+        if (ctrl_sock < 0)
+            return -1;
 
         struct sockaddr_in serv_addr;
         serv_addr.sin_family = AF_INET;
         serv_addr.sin_port = htons(cp_tor_port);
         inet_pton(AF_INET, tor_ip, &serv_addr.sin_addr);
-        
+
         if (connect(ctrl_sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         {
             perror("Control Port connection failed");
             close(ctrl_sock);
             return -1;
         }
-        
+
         char buff[256] = {0};
         string auth = string("AUTHENTICATE \"") + password + "\"\r\n";
         send(ctrl_sock, auth.c_str(), auth.length(), 0);
         int bytes = recv(ctrl_sock, buff, sizeof(buff) - 1, 0);
-        
+
         if (bytes < 0 || string(buff).find("250 OK") == string::npos)
         {
             perror("Tor Control Authentication failed");
             close(ctrl_sock);
             return -1;
         }
-        
+
         string signalNewnym = string("SIGNAL NEWNYM\r\n");
         send(ctrl_sock, signalNewnym.c_str(), signalNewnym.length(), 0);
         memset(buff, 0, sizeof(buff));
         recv(ctrl_sock, buff, sizeof(buff) - 1, 0);
-        
+
         cout << "[TOR] Tor circuits rotating safely..." << endl;
         sleep(10); // Cool down wait for circuit build
-        
+
         close(ctrl_sock); // Close control connection cleanly
         return 0;
     }
@@ -104,13 +106,15 @@ public:
         memset(&output, 0, sizeof(ScanOutputStruct));
 
         GenericInterface interface(domain, headers, proto_port);
-        if (cancel_flag && *cancel_flag) return output;
-        
+        if (cancel_flag && *cancel_flag)
+            return output;
+
         bool isHttps = (strcmp(proto_port, "443") == 0);
         auto start = chrono::high_resolution_clock::now();
-        
+
         int sock = tunnel.SockTunnel();
-        if (sock < 0) return output;
+        if (sock < 0)
+            return output;
 
         if (isHttps)
         {
@@ -127,7 +131,10 @@ public:
 
         if (cancel_flag && *cancel_flag)
         {
-            if (isHttps && ssl) { SSL_free(ssl); }
+            if (isHttps && ssl)
+            {
+                SSL_free(ssl);
+            }
             close(sock);
             return output;
         }
@@ -139,12 +146,22 @@ public:
         if (status_code < 200 || (status_code >= 400 && status_code != 404))
         {
             cout << "[WARNING C++] Bad status target match [" << status_code << "]. Resetting transport line..." << endl;
-            if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); ssl = nullptr; }
-            if (sock >= 0) { close(sock); sock = -1; }
+            if (isHttps && ssl)
+            {
+                SSL_shutdown(ssl);
+                SSL_free(ssl);
+                ssl = nullptr;
+            }
+            if (sock >= 0)
+            {
+                close(sock);
+                sock = -1;
+            }
             // Trigger raw control circuit rotation
             TorRotation();
             usleep(10000);
-            if (cancel_flag && *cancel_flag) return output;
+            if (cancel_flag && *cancel_flag)
+                return output;
 
             // FIX 1: Re-establish pristine tunnel connection and re-run query execution
             sock = tunnel.SockTunnel();
@@ -169,11 +186,11 @@ public:
 
         auto end = chrono::high_resolution_clock::now();
         output.latency_ms = chrono::duration<double, milli>(end - start).count();
-        
+
         strncpy(output.headers, result.headers, sizeof(output.headers) - 1);
         strncpy(output.domain, result.domain, sizeof(output.domain) - 1);
         output.status_code = status_code;
-        
+
         char *line_end = strpbrk(result.headers, "\r\n");
         if (line_end != nullptr)
         {
@@ -181,9 +198,14 @@ public:
             strncpy(output.reason_phrase, result.headers, sizeof(output.reason_phrase) - 1);
         }
 
-        if (isHttps && ssl) { SSL_shutdown(ssl); SSL_free(ssl); }
-        if (sock >= 0) close(sock);
-        
+        if (isHttps && ssl)
+        {
+            SSL_shutdown(ssl);
+            SSL_free(ssl);
+        }
+        if (sock >= 0)
+            close(sock);
+
         return output;
     }
 };
@@ -196,12 +218,14 @@ extern "C"
     }
     ScanOutputStruct tor_scan_engine(char path[2048], void *engine, bool *cancel_flag)
     {
-        if (!engine) return ScanOutputStruct();
+        if (!engine)
+            return ScanOutputStruct();
         return static_cast<Scan *>(engine)->tor_scan(path, cancel_flag);
     }
     void destroy_tor_engine(void *engine)
     {
-        if (engine) {
+        if (engine)
+        {
             delete static_cast<Scan *>(engine);
         }
     }
