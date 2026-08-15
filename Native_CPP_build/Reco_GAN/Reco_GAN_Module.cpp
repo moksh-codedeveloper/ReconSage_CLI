@@ -12,14 +12,14 @@ private:
 
     void calculate_z_score(
         const TelemetryProcessedData &prepared_data,
-        vector<double> &status_code_z_score, 
-        vector<double> &latency_z_score, 
+        vector<double> &status_code_z_score,
+        vector<double> &latency_z_score,
         vector<double> &char_tokens_z_score)
     {
         RecoGAN_Prediction_Module status_code_mean_stddev;
         RecoGAN_Prediction_Module latency_mean_stddev;
         Reco_GAN_Tokens_Prediction_Module char_tokens_mean_stddev;
-        
+
         Reco_GAN_Prediction_Module reco_gan(domain);
         reco_gan.extract_mean_stddev_code_latency_data(status_code_mean_stddev, latency_mean_stddev);
         reco_gan.extract_mean_stddev_char_tokens(char_tokens_mean_stddev);

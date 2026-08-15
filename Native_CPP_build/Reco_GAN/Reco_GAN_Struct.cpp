@@ -3,32 +3,38 @@ using namespace std;
 
 #pragma once
 
-struct TelemetryTensor{
+struct TelemetryTensor
+{
     double statusCode;
     double LatencyMS;
     vector<double> tokens;
 };
 
-struct TelemetryProcessedData{
+struct TelemetryProcessedData
+{
     vector<double> status_code;
     vector<double> latency;
     vector<vector<double>> char_tokens;
 };
 
-struct StatusCodeAndLatML{
+struct StatusCodeAndLatML
+{
     double status_lat_thresholds;
 };
 
-struct TokensML{
+struct TokensML
+{
     vector<double> thresholds;
 };
 
-struct RecoGAN_Prediction_Module{
+struct RecoGAN_Prediction_Module
+{
     double mean;
     double stddev;
 };
 
-struct Reco_GAN_Tokens_Prediction_Module{
+struct Reco_GAN_Tokens_Prediction_Module
+{
     vector<double> mean;
     vector<double> stddev;
 };

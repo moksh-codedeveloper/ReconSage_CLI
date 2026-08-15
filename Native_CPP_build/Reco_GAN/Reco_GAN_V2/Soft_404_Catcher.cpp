@@ -5,14 +5,8 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
+#include "Reco_GAN_Struct.cpp"
 using namespace std;
-
-struct ResponseBodyFilePath
-{
-    char response_body[4096] = {0};
-    char domain[3072] = {0};
-    int status_code = 0;
-};
 
 class Soft_404_Catcher
 {
@@ -20,7 +14,6 @@ private:
     char response_body_file_path[512] = {0};
 
     static inline const vector<string> SIGNATURES = {
-        // --- Generic Soft 404s ---
         "page not found",
         "404 not found",
         "does not exist",
@@ -30,14 +23,12 @@ private:
         "no longer available",
         "error 404",
         "return to homepage",
-        // --- Framework Defaults ---
         "that page can't be found",
         "nothing found",
         "the page you were looking for doesn't exist",
         "404 - file or directory not found",
         "the requested url was not found",
         "route not found",
-        // --- WAF & Challenge Pages ---
         "just a moment...",
         "attention required!",
         "checking your browser",
@@ -55,9 +46,9 @@ public:
         response_body_file_path[511] = '\0';
     }
 
-    bool isItSoft404(int status_code, const char *response_body)
+    bool isItSoft404(int statusCode, const char *response_body)
     {
-        if (status_code != 200 && status_code != 203 && status_code != 206)
+        if (statusCode != 200 && statusCode != 203 && statusCode != 206)
         {
             return false;
         }
@@ -134,11 +125,11 @@ public:
             {
                 try
                 {
-                    record.status_code = stoi(line);
+                    record.statusCode = stoi(line);
                 }
                 catch (...)
                 {
-                    record.status_code = 0;
+                    record.statusCode = 0;
                 }
             }
 
@@ -172,5 +163,16 @@ public:
 
         res_file.close();
         return records;
+    }
+    vector<bool> mainSoft404()
+    {
+        vector<ResponseBodyFilePath> mainOutput = mainResponseBodyParser();
+        vector<bool> soft404Output;
+        for (const ResponseBodyFilePath &data : mainOutput)
+        {
+            bool soft404OutputData = isItSoft404(data.statusCode, data.response_body);
+            soft404Output.push_back(soft404OutputData);
+        }
+        return soft404Output;
     }
 };

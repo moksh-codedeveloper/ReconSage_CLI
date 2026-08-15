@@ -73,18 +73,19 @@ public:
             cerr << "[ERROR C++] Failed to open stash file: " << absolute_filename << endl;
             return dataset;
         }
-        
+
         string line;
         while (getline(file, line))
         {
-            if (line.empty()) continue;
-            
+            if (line.empty())
+                continue;
+
             stringstream ss(line);
             double status_code = 0.0;
             double lat = 0.0;
             if (!(ss >> status_code >> lat))
                 continue;
-            
+
             vector<double> tokens;
             double tokensValue;
             while (ss >> tokensValue)
@@ -106,7 +107,7 @@ public:
         data.char_tokens.reserve(total_rows);
         if (total_rows == 0)
             return data;
-            
+
         for (const auto &item : dataset)
         {
             data.status_code.push_back(item.statusCode);
@@ -155,8 +156,8 @@ public:
             return {};
 
         // Bound-check baseline model parameters against token dimension length
-        size_t safe_cols = min({num_cols, 
-                                char_tokens_mean_stddev_shared_object.mean.size(), 
+        size_t safe_cols = min({num_cols,
+                                char_tokens_mean_stddev_shared_object.mean.size(),
                                 char_tokens_mean_stddev_shared_object.stddev.size()});
 
         if (safe_cols == 0)
@@ -202,7 +203,7 @@ public:
         char mean_stddev_file_name[768] = {0};
         absolute_filename_domain_sanitization(mean_stddev_file_name, target_dir);
         strncat(mean_stddev_file_name, "_mean_stddev_of_code_latency.txt", sizeof(mean_stddev_file_name) - strlen(mean_stddev_file_name) - 1);
-        
+
         ifstream file(mean_stddev_file_name);
         if (!file.is_open())
         {
@@ -277,7 +278,7 @@ public:
         char thresholds_file_name[768] = {0};
         absolute_filename_domain_sanitization(thresholds_file_name, target_dir);
         strncat(thresholds_file_name, "_thresholds_status_code_latency.txt", sizeof(thresholds_file_name) - strlen(thresholds_file_name) - 1);
-        
+
         ifstream file(thresholds_file_name);
         if (!file.is_open())
         {
@@ -304,7 +305,7 @@ public:
         char thresholds_file_name[768] = {0};
         absolute_filename_domain_sanitization(thresholds_file_name, target_dir);
         strncat(thresholds_file_name, "_thresholds_char_tokens.txt", sizeof(thresholds_file_name) - strlen(thresholds_file_name) - 1);
-        
+
         ifstream file(thresholds_file_name);
         if (!file.is_open())
         {
