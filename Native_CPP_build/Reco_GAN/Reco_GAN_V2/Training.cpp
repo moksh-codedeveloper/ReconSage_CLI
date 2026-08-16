@@ -173,11 +173,19 @@ public:
 
 extern "C"
 {
-    void reco_Gan_V2(const double *latency_data, const char *domain, int total_count, int sub_sample_size, int num_trees)
+    struct reco_gan_v2
     {
-        int safe_count = min(total_count, 5000);
-        vector<double> incomingLiveLatencyDataset(latency_data, latency_data + safe_count);
-        TrainingModule module(domain, sub_sample_size, num_trees);
+        char *domain;
+        double *latency_data;
+        int total_count;
+        int sub_sample_size;
+        int num_trees;
+    };
+    void reco_Gan_V2(reco_gan_v2 packet)
+    {
+        int safe_count = min(packet.total_count, 5000);
+        vector<double> incomingLiveLatencyDataset(packet.latency_data, packet.latency_data + safe_count);
+        TrainingModule module(packet.domain, packet.sub_sample_size, packet.num_trees);
         cout << "[TRAINING_START C++] Firing the training module of C++" << endl;
         vector<vector<iTreeNodes>> forests = module.Train(incomingLiveLatencyDataset);
         cout << "[TRAINING_END C++] Training is done forests has been created(hopefully) now storing everything in a txt file :)" << endl;
