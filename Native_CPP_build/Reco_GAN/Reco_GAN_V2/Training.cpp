@@ -20,7 +20,6 @@ private:
     int num_trees;
     int max_depth;
     int subsample_size;
-    vector<vector<iTreeNodes>> forests;
     char domain[256] = {0};
 
     int buildTreeRecursive(vector<iTreeNodes> &tree, vector<double> &current_bucket, int depth)
@@ -93,7 +92,7 @@ private:
     {
         const char *user_name = getenv("USER");
         if (!user_name)
-            user_name = "default";
+            user_name = "root";
 
         char sanitized_domain[256] = {0};
         for (int i = 0; i < 255 && domain[i] != '\0'; ++i)
@@ -109,29 +108,35 @@ private:
     }
 
 public:
-    TrainingModule(const char *_domain, int s_sample = 256, int n_trees = 100)
-        : num_trees(n_trees), subsample_size(s_sample), rng(random_device{}())
+    // num_trees = 100, sub_sample_size = 256 but didn't included coz let the user pass it instead of assuming it ourselves
+    TrainingModule(const char *_domain, int s_sample, int n_trees)
+        : num_trees(n_trees), subsample_size(max(2, s_sample)), rng(random_device{}())
     {
         max_depth = static_cast<int>(ceil(log2(max(2, subsample_size))));
         strncpy(domain, _domain, 255);
         domain[255] = '\0';
     }
 
-    void Train(vector<double> &latency_dataset)
+    vector<vector<iTreeNodes>> Train(vector<double> &latency_dataset)
     {
-        forests.clear();
+        vector<vector<iTreeNodes>> forests;
         if (latency_dataset.empty())
-            return;
+            return forests;
 
         for (int i = 0; i < num_trees; i++)
         {
+            // directly implemented shuffle on the latency dataset because it would be easy coz i am eventually gonna be adding the size limit in the extern functions given below
+            shuffle(latency_dataset.begin(), latency_dataset.end(), rng);
+            size_t sample_len = min(static_cast<size_t>(subsample_size), latency_dataset.size());
+            vector<double> sample_bucket(latency_dataset.begin(), latency_dataset.begin() + sample_len);
             vector<iTreeNodes> tree;
-            buildTreeRecursive(tree, latency_dataset, 0);
+            buildTreeRecursive(tree, sample_bucket, 0);
             forests.push_back(tree);
         }
+        return forests;
     }
 
-    void writeTreeTrainingData()
+    void writeTreeTrainingData(vector<vector<iTreeNodes>> forests)
     {
         if (forests.empty())
             return;
@@ -165,3 +170,18 @@ public:
         file.close();
     }
 };
+
+extern "C"
+{
+    void reco_Gan_V2(const double *latency_data, const char *domain, int total_count, int sub_sample_size, int num_trees)
+    {
+        int safe_count = min(total_count, 5000);
+        vector<double> incomingLiveLatencyDataset(latency_data, latency_data + safe_count);
+        TrainingModule module(domain, sub_sample_size, num_trees);
+        cout << "[TRAINING_START C++] Firing the training module of C++" << endl;
+        vector<vector<iTreeNodes>> forests = module.Train(incomingLiveLatencyDataset);
+        cout << "[TRAINING_END C++] Training is done forests has been created(hopefully) now storing everything in a txt file :)" << endl;
+        module.writeTreeTrainingData(forests);
+        cout << "Model written to disk." << endl;
+    }
+}

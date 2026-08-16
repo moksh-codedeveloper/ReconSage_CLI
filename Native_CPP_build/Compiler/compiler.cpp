@@ -2,7 +2,6 @@
 #include <string>
 #include <cstring>
 #include "message_converter.cpp"
-#include "latency_converter.cpp"
 #include "status_code_converter.cpp"
 #include <fstream>
 #include <iomanip>
@@ -34,16 +33,14 @@ public:
         vector<vector<double>> master_matrix;
         StatusCodeCompiler status_code_compiler(status_code_list, domain);
         Compiler_Struct compiled_status = status_code_compiler.Compile();
-        LatencyCompiler latency_compiler(latency_list, domain);
-        Latency_Compiler_Struct compiled_latency = latency_compiler.Compile();
         MessageToTensar message_to_tensor(reason_phrase);
         vector<vector<double>> tensor = message_to_tensor.CompileBatch();
-        size_t total_rows = compiled_latency.normalized_latency_arr.size();
+        size_t total_rows = latency_list.size();
         for (int it = 0; it < total_rows; it++)
         {
             vector<double> single_row;
             single_row.push_back(compiled_status.hex_status_code_arr[it]);
-            single_row.push_back(compiled_latency.normalized_latency_arr[it]);
+            single_row.push_back(latency_list[it]);
             for (auto &element : tensor[it])
             {
                 single_row.push_back(static_cast<double>(element));
@@ -131,11 +128,85 @@ public:
         stash_file.close();
         cout << "[+] SUCCESS: Isolated domain matrix saved directly to: " << absolute_filepath << endl;
     }
+    void latency_data_stash_file(vector<double> &latency_data)
+    {
+        const char *user_name = getenv("USER");
+        if (!user_name)
+        {
+            user_name = "root"; // Safe fallback mechanism for Linux environments
+        }
+
+        // 2. Build the target directory path buffer securely
+        char target_dir[256] = {0};
+        snprintf(target_dir, sizeof(target_dir), "/home/%s/Reco_novich_Data/", user_name);
+
+#if defined(__linux__) || defined(__APPLE__)
+        mkdir(target_dir, 0755);
+#endif
+
+        char absolute_filepath[512] = {0};
+        strcpy(absolute_filepath, target_dir);
+
+        size_t dir_len = strlen(absolute_filepath);
+
+        // 5. Bound reading loop strictly to extract safe domain identifier
+        for (int i = 0; i < 256; ++i)
+        {
+            char c = domain[i];
+
+            if (c == '\0')
+            {
+                absolute_filepath[dir_len + i] = '\0';
+                break;
+            }
+
+            // Sanitize punctuation dots or slashes to valid flat naming chars
+            if (c == '.' || c == '/' || c == ':' || c == '\\')
+            {
+                absolute_filepath[dir_len + i] = '_';
+            }
+            else
+            {
+                absolute_filepath[dir_len + i] = c;
+            }
+        }
+
+        // 6. Safe suffix alignment inside the stack buffer allocation bounds
+        strncat(absolute_filepath, "_latency_data.txt", sizeof(absolute_filepath) - strlen(absolute_filepath) - 1);
+
+        // 7. Establish the file descriptor channel
+        ofstream stash_file(absolute_filepath, ofstream::out | ofstream::trunc);
+        if (!stash_file.is_open())
+        {
+            cerr << "[-] CRITICAL STORAGE ERROR: Cannot open dynamic absolute file path: " << absolute_filepath << endl;
+            return;
+        }
+
+        stash_file << fixed << setprecision(4);
+        size_t total_rows = latency_data.size();
+        if (total_rows == 0)
+        {
+            stash_file.close();
+            return;
+        }
+
+        // 8. Matrix ingestion loops streaming elements out to disk space
+        for (size_t it = 0; it < total_rows; it++)
+        {
+            stash_file << latency_data[it];
+            if (it < total_rows - 1)
+                stash_file << " ";
+            stash_file << "\n";
+        }
+
+        stash_file.close();
+        cout << "[+] SUCCESS: Isolated domain matrix saved directly to: " << absolute_filepath << endl;
+    }
 };
 
 extern "C"
 {
-    struct DataPacket
+    struct latency_dataPacket
     {
         char *domain;
         char **reason_phrase;
@@ -143,17 +214,18 @@ extern "C"
         double *latencies;
         int total_records;
     };
-    void compile_telemetry_save_file(DataPacket data_packet)
+    void compile_telemetry_save_file(latency_dataPacket latency_data_packet)
     {
         vector<string> reason_phrase;
-        vector<int> status_code_list(data_packet.status_code, data_packet.status_code + data_packet.total_records);
-        vector<double> latency_list(data_packet.latencies, data_packet.latencies + data_packet.total_records);
-        for (int it = 0; it < data_packet.total_records; it++)
+        vector<int> status_code_list(latency_data_packet.status_code, latency_data_packet.status_code + latency_data_packet.total_records);
+        vector<double> latency_list(latency_data_packet.latencies, latency_data_packet.latencies + latency_data_packet.total_records);
+        for (int it = 0; it < latency_data_packet.total_records; it++)
         {
-            reason_phrase.push_back(data_packet.reason_phrase[it]);
+            reason_phrase.push_back(latency_data_packet.reason_phrase[it]);
         }
-        Reco_novich reco(reason_phrase, latency_list, status_code_list, data_packet.domain);
-        vector<vector<double>> sythesized_data = reco.Synthesize();
-        reco.save_file(sythesized_data);
+        Reco_novich reco(reason_phrase, latency_list, status_code_list, latency_data_packet.domain);
+        vector<vector<double>> sythesized_latency_data = reco.Synthesize();
+        reco.save_file(sythesized_latency_data);
+        reco.latency_data_stash_file(latency_list);
     }
 }

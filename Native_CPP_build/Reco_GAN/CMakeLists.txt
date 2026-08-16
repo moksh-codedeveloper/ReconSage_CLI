@@ -13,3 +13,14 @@ set_target_properties(reconsage PROPERTIES
     PREFIX "reco_gan_ml_module"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../../bin/Debug/net10.0"
 )
+
+
+add_library(reco_gan_v2 SHARED
+    Reco_GAN_V2/Training.cpp
+)
+
+set_target_properties(reco_gan_v2 PROPERTIES
+    OUTPUT_NAME "_cpp_module"
+    PREFIX "reco_gan_lat_v2_ml_module"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/../../bin/Debug/net10.0"
+)
