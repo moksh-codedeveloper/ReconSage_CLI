@@ -26,6 +26,7 @@ public:
         latency_list = latency_arr;
         status_code_list = status_code_arr;
         strncpy(domain, _domain, 256);
+        domain[255] = '\0';
     }
 
     vector<vector<double>> Synthesize()
