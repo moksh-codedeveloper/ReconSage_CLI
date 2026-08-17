@@ -16,7 +16,7 @@ namespace ReconSageShell
     {
         public RModel? RsoConfig { set; get; }
         public RfoParsedModel? rfoParsed { set; get; }
-        public Model? RxoParse {set;get;}
+        public Model? RxoParse { set; get; }
         public bool isRsoLoaded => RsoConfig != null;
         public bool isRfoLoaded => rfoParsed != null;
         public bool isRxoLoaded => RxoParse != null;
@@ -65,7 +65,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = {"load_rso", "load_rxo", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan","start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_save", "reco_gan_training", "reco_gan_predict"};
+            string[] commands = { "load_rso", "load_rxo", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan", "start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_save", "reco_gan_training", "reco_gan_predict" };
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -79,7 +79,7 @@ namespace ReconSageShell
         {
             PrintBanner();
             var sessionData = new SessionData();
-            var cts  = new CancellationTokenSource();
+            var cts = new CancellationTokenSource();
             var fileWires = new Wires();
             while (_isRunning)
             {
@@ -108,7 +108,7 @@ namespace ReconSageShell
                             Logger.Success($"RFO Config Loaded from {parts[1]}");
                             break;
                         case "load_rxo":
-                            if(parts.Length < 2) { Logger.Error("Usage: load_rxo <path>"); break; }
+                            if (parts.Length < 2) { Logger.Error("Usage: load_rxo <path>"); break; }
                             sessionData.LoadRxo(parts[1]);
                             Logger.Success($"RXO Config Loaded from {parts[1]}");
                             break;
@@ -139,7 +139,7 @@ namespace ReconSageShell
                             string headers = await fileWires.HeaderTextParser(httpRso.HeadersFile);
                             await AllScans.ExecHttpProxy(httpRfo.Target, httpRfo.Proto_port, httpRfo.tor_ip, headers, httpRso.JsonFilePath, httpRso.WordlistPath, httpRso.Timeout, httpRso.Delay, httpRfo.tor_port, cts);
                             break;
-                        case "start_socks_proxy_scan" :
+                        case "start_socks_proxy_scan":
                             if (!sessionData.isRfoLoaded || !sessionData.isRsoLoaded) { Logger.Warn("RFO and RSO data not loaded!"); break; }
                             Logger.Scan("Initializing Socks Proxy Scan Module....");
                             var socksRso = sessionData.RsoConfig!;

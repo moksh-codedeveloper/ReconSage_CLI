@@ -9,6 +9,8 @@ struct RxoStruct
     double k_factor = 0.0;
     char db_password[3096] = {0};
     double latency_ms = 0.0;
+    int num_trees = 0;
+    int sub_sample_size = 0;
 };
 
 class RxoParser
@@ -30,10 +32,12 @@ private:
             return false;
         return true;
     }
+
 public:
     RxoParser(char file_name[768])
     {
-        if (file_name) {
+        if (file_name)
+        {
             strncpy(_fileName, file_name, sizeof(_fileName) - 1);
             _fileName[sizeof(_fileName) - 1] = '\0';
         }
@@ -89,6 +93,30 @@ public:
                     return RxoStruct();
                 }
             }
+            else if (key == "num_trees")
+            {
+                try
+                {
+                    int val = stoi(value);
+                    parser.num_trees = val;
+                }
+                catch (...)
+                {
+                    return RxoStruct();
+                }
+            }
+            else if (key == "sub_sample_size")
+            {
+                try
+                {
+                    int val = stoi(value);
+                    parser.sub_sample_size = val;
+                }
+                catch (...)
+                {
+                    return RxoStruct();
+                }
+            }
             else if (key == "status_code")
             {
                 try
@@ -125,8 +153,10 @@ public:
     }
 };
 
-extern "C" {
-    RxoStruct rxo_parse(char fileName[3096]){
+extern "C"
+{
+    RxoStruct rxo_parse(char fileName[3096])
+    {
         RxoParser parser(fileName);
         RxoStruct out_config = parser.parseFile();
         return out_config;

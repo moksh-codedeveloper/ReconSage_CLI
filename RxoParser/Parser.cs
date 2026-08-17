@@ -12,6 +12,8 @@ namespace RxoParser
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 3096)]
         public string db_password;
         public double latency_ms;
+        public int num_trees;
+        public int sub_sample_size;
     }
     public class Parser : IFileParser<Model>
     {
@@ -37,7 +39,9 @@ namespace RxoParser
                 db_password = rxo.db_password,
                 latency_ms = rxo.latency_ms,
                 status_code = rxo.status_code,
-                k_factor = rxo.k_factor
+                k_factor = rxo.k_factor,
+                num_trees = rxo.num_trees,
+                sub_sample_size = rxo.sub_sample_size
             };
         }
     }
