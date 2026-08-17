@@ -267,5 +267,20 @@ namespace DB
                 yield return currentChunk;
             }
         }
+
+        public async Task<List<double>> GetAllLatency()
+        {
+            List<double> latencyList = new();
+            string sqlCommand = @"
+            SELECT LatencyMs FROM RequestLogs;
+            ";
+            using var command = new SqliteCommand(sqlCommand, connection);
+            using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                latencyList.Add(reader.IsDBNull(0) ? 0.0 : reader.GetDouble(0));
+            }
+            return latencyList;
+        }
     }
 }

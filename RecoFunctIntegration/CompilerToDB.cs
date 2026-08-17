@@ -5,6 +5,7 @@ using ScanOutputModel;
 using Wire;
 using DB;
 using ReconSageLogger;
+using Reco_GAN_Latency_V2;
 
 namespace CompilerToDB
 {
@@ -61,6 +62,13 @@ namespace CompilerToDB
             {
                 new Reco_novich().CompileAndSave(record);
             }
+        }
+        public static async Task LatTrain(string domain, int numTrees, int subSampleSize, string pass)
+        {
+            DBModule dBModule = new DBModule(domain, pass);
+            List<double> latencyList = await dBModule.GetAllLatency();
+            Latency_Module latency_Module = new Latency_Module(domain, numTrees, subSampleSize, latencyList);
+            latency_Module.Train();
         }
     }
 }
