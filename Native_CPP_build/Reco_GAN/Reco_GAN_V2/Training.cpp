@@ -183,8 +183,12 @@ extern "C"
     };
     void reco_Gan_V2(reco_gan_v2 packet)
     {
-        int safe_count = min(packet.total_count, 5000);
-        vector<double> incomingLiveLatencyDataset(packet.latency_data, packet.latency_data + safe_count);
+        // 1. PRINT EVERYTHING IMMEDIATELY BEFORE DOING ANY MATH OR VECTORS
+        cout << "--- C++ RECEIVED ---" << endl;
+        cout << "Total Count: " << packet.total_count << endl;
+        cout << "Sub Sample: " << packet.sub_sample_size << endl;
+        cout << "Num Trees: " << packet.num_trees << endl;
+        vector<double> incomingLiveLatencyDataset(packet.latency_data, packet.latency_data + packet.total_count);
         TrainingModule module(packet.domain, packet.sub_sample_size, packet.num_trees);
         cout << "[TRAINING_START C++] Firing the training module of C++" << endl;
         vector<vector<iTreeNodes>> forests = module.Train(incomingLiveLatencyDataset);

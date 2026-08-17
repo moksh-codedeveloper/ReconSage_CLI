@@ -270,6 +270,9 @@ namespace DB
 
         public async Task<List<double>> GetAllLatency()
         {
+            EnsureConnectionInitialized();
+            if (connection!.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
             List<double> latencyList = new();
             string sqlCommand = @"
             SELECT LatencyMs FROM RequestLogs;
