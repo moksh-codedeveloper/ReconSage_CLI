@@ -79,6 +79,7 @@ set_target_properties(reco_gan_v1 PROPERTIES
 # 6. ML Latency Engine V2 / Isolation Forest (reco_gan_lat_v2_ml_module_cpp_module.so)
 add_library(reco_gan_v2 SHARED
     Reco_GAN/Reco_GAN_V2/Training.cpp
+    Reco_GAN/Reco_GAN_V2/Predict.cpp
 )
 set_target_properties(reco_gan_v2 PROPERTIES
     OUTPUT_NAME "_cpp_module"
