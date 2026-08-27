@@ -6,14 +6,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
 #include "Reco_GAN_Struct.cpp"
@@ -35,26 +27,32 @@ private:
     vector<vector<iTreeNodes>> forest;
     double c_factor_sub_sample;
     static constexpr double EULER_MASCHERONI = 0.5772156649;
+
     double calculate_c(double m) const
     {
-        if (m <= 0.1)
+        if (m <= 1.0)
             return 0.0;
         else if (m == 2.0)
-            return 0.1;
+            return 1.0;
         return 2.0 * (log(m - 1.0) + EULER_MASCHERONI) - (2.0 * (m - 1.0) / m);
     }
+
     double pathLength(const vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const
     {
-        if (node_idx < 1 && node_idx >= static_cast<int>(trees.size()))
+        if (node_idx < 0 || node_idx >= static_cast<int>(trees.size()))
             return current_depth;
+
         const iTreeNodes &nodes = trees[node_idx];
+
         if (nodes.is_leaf)
-            return current_depth + calculate_c(static_cast<int>(trees.size()));
+            return current_depth + calculate_c(static_cast<double>(nodes.size));
+
         if (latency_x < nodes.split_value)
             return pathLength(trees, nodes.left_child, latency_x, current_depth + 1.0);
         else
             return pathLength(trees, nodes.right_child, latency_x, current_depth + 1.0);
     }
+
     void buildFullFilePath(char out_path[512])
     {
         const char *user_name = getenv("USER");
@@ -73,10 +71,12 @@ private:
 
         snprintf(out_path, 512, "/home/%s/Reco_GAN_Data/%s_trees_data.txt", user_name, sanitized_domain);
     }
+
     double Score(double live_latency) const
     {
         if (forest.empty())
             return 0.0;
+
         double total_path = 0.0;
         for (const auto &trees : forest)
         {
@@ -87,15 +87,15 @@ private:
     }
 
 public:
-    Reco_GAN_V2_Predict(char _domain[256], int s_sample) : subsample_size(s_sample)
+    Reco_GAN_V2_Predict(const char *_domain, int s_sample) : subsample_size(s_sample)
     {
         strncpy(domain, _domain, 255);
         domain[255] = '\0';
         c_factor_sub_sample = calculate_c(static_cast<double>(subsample_size));
     }
-    void LoadModel()
+
+    bool LoadModel()
     {
-        // vector<vector<iTreeNodes>> forest;
         forest.clear();
         char file_path[512] = {0};
         buildFullFilePath(file_path);
@@ -104,7 +104,7 @@ public:
         if (!file.is_open())
         {
             cerr << "[ERROR] Prediction engine could not open: " << file_path << endl;
-            return;
+            return false;
         }
 
         string tag;
@@ -130,16 +130,16 @@ public:
             }
         }
         file.close();
-        return;
+        return !forest.empty();
     }
 
-    vector<double> Score_List(vector<double> latency_list)
+    vector<double> Score_List(const vector<double> &latency_list) const
     {
         vector<double> scores;
+        scores.reserve(latency_list.size());
         for (const double &latency : latency_list)
         {
-            double score = Score(latency);
-            scores.push_back(score);
+            scores.push_back(Score(latency));
         }
         return scores;
     }
@@ -147,25 +147,32 @@ public:
 
 extern "C"
 {
-    void reco_Gan_V2_predict(char domain[256], int subsample_size, double *latency_list, int latency_size)
+    void reco_Gan_V2_predict(const char *domain, int subsample_size, const double *latency_list, int latency_size)
     {
         Reco_GAN_V2_Predict reco_gan(domain, subsample_size);
-        printf("Loading the Model......");
-        reco_gan.LoadModel();
-        vector<double> latency_vector(latency_list, latency_list + latency_size);
-        printf("Calculating the scores from the live fresh data");
-        vector<double> scores_list = reco_gan.Score_List(latency_vector);
-        for (const auto &score : scores_list)
+        printf("[PREDICTION C++] Loading Model for %s...\n", domain);
+        if (!reco_gan.LoadModel())
         {
-            if (score <= 0.5)
-                printf("NORMAL");
-            else if (score > 0.5 && score <= 0.7)
-                printf("Industry Standard");
-            else if (score >= 0.8)
-                printf("ANOMALY");
-            else if (score >= 0.7 && score < 0.8)
-                printf("SUSSY");
+            printf("[ERROR] Failed to load model file.\n");
+            return;
         }
-        printf("Prediction ends Model Forest No.0x00 commencing mov rax, 60 and mov rdi, 0");
+
+        vector<double> latency_vector(latency_list, latency_list + latency_size);
+        printf("[PREDICTION C++] Scoring %d live telemetry samples...\n", latency_size);
+        vector<double> scores_list = reco_gan.Score_List(latency_vector);
+
+        for (size_t i = 0; i < scores_list.size(); ++i)
+        {
+            double score = scores_list[i];
+            printf("Sample %zu (%.2f ms) -> Score: %.4f | ", i, latency_vector[i], score);
+            if (score <= 0.50)
+                printf("NORMAL\n");
+            else if (score <= 0.65)
+                printf("STANDARD JITTER\n");
+            else if (score < 0.80)
+                printf("SUSPICIOUS / THROTTLED\n");
+            else
+                printf("ANOMALY / TARPIT WALL\n");
+        }
     }
 }

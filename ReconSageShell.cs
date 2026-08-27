@@ -82,7 +82,7 @@ namespace ReconSageShell
             Console.WriteLine("\n Available Commands:");
             Console.ForegroundColor = ConsoleColor.Green;
 
-            string[] commands = { "load_rso", "load_rxo", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan", "start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_based_on_status_code_save", "compile_db_and_based_on_latency_save", "reco_gan_training", "reco_gan_predict", "exit", "reco_gan_trees_train" };
+            string[] commands = { "load_rso", "load_rxo", "load_rfo", "start_scan_cpp", "start_tor_scan", "start_http_proxy_scan", "start_socks_proxy_scan", "start_cpp_body_capture", "transfer_json_to_db", "compile_db_and_based_on_status_code_save", "compile_db_and_based_on_latency_save", "reco_gan_training", "reco_gan_predict", "reco_gan_trees_train", "reco_gan_trees_predict", "exit" };
             foreach (var cmd in commands)
             {
                 Console.WriteLine($"   > {cmd,-20}");
@@ -217,6 +217,17 @@ namespace ReconSageShell
                             var recoGanTreeRfo = sessionData.rfoParsed!;
                             var recoGanTreeRxo = sessionData.RxoParse!;
                             await JsonToDB.LatTrain(recoGanTreeRfo.Target, recoGanTreeRxo.num_trees, recoGanTreeRxo.sub_sample_size, recoGanTreeRxo.db_password);
+                            break;
+                        case "reco_gan_trees_predict":
+                            if (!sessionData.isRfoLoaded || !sessionData.isRxoLoaded)
+                            {
+                                Logger.Warn("RFO RXO data_files not loaded!");
+                                break;
+                            }
+                            Logger.Info("Prediction on the following latency Data starts this minute...");
+                            var recoGanPreTreeRfo = sessionData.rfoParsed!;
+                            var recoGanPredTreeRxo = sessionData.RxoParse!;
+                            await JsonToDB.LatPredict(recoGanPreTreeRfo.Target, recoGanPredTreeRxo.sub_sample_size, recoGanPredTreeRxo.db_password);
                             break;
                         case "exit":
                             _isRunning = false;

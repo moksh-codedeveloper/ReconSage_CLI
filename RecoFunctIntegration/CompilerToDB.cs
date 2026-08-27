@@ -84,8 +84,15 @@ namespace CompilerToDB
         {
             DBModule dBModule = new DBModule(domain, pass);
             List<double> latencyList = await dBModule.GetAllLatency();
-            Latency_Module latency_Module = new Latency_Module(domain, numTrees, subSampleSize, latencyList);
-            latency_Module.Train();
+            Latency_Module latency_Module = new Latency_Module(domain, latencyList);
+            latency_Module.Train(numTrees, subSampleSize);
+        }
+        public static async Task LatPredict(string domain, int subsample_size, string pass)
+        {
+            DBModule dBModule = new DBModule(domain, pass);
+            List<double> latencyList = await dBModule.GetAllLatency();
+            Latency_Module latency_Module = new Latency_Module(domain, latencyList);
+            latency_Module.Predict(subsample_size);
         }
     }
 }
