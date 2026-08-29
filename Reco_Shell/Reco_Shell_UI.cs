@@ -20,7 +20,7 @@ namespace ReconSageShell.UI
             Console.ResetColor();
             Console.WriteLine(new string('-', 62));
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("=[ " + ConsoleColor.Yellow + "ReconSage | Advanced Telemetry Framework" + ConsoleColor.DarkGray + " ]=");
+            Console.WriteLine("=[ \u001b[33mReconSage | Advanced Telemetry Framework\u001b[90m ]=");
             Console.WriteLine("+ -- --=[ Status: " + FormatPill(sessionData.isRsoLoaded, "RSO") + " | " +
                               FormatPill(sessionData.isRfoLoaded, "RFO") + " | " +
                               FormatPill(sessionData.isRxoLoaded, "RXO") + " ]=");

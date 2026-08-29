@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
 using AllFilesWires;
 using AllScansInOne;
 using CompilerToDB;
@@ -151,6 +155,18 @@ namespace ReconSageShell.Commands
                 Logger.Info("Prediction on the following latency Data starts this minute...");
                 await JsonToDB.LatPredict(sessionData.rfoModel!.Target, sessionData.rxoModel!.sub_sample_size, sessionData.rxoModel!.db_password);
             });
+            Add("shell", "OS Integration", "Spawn an interactive subshell session (zsh/bash)", _ => SpawnInteractiveSubshell());
+
+            Add("exec", "OS Integration", "Execute a host command (e.g., exec ls -la)", async args =>
+            {
+                if (args.Length == 0)
+                {
+                    Logger.Error("Usage: exec <command>");
+                    return;
+                }
+                string cmd = string.Join(" ", args);
+                await RunHostCommand(cmd);
+            });
         }
 
         private void Add(string name, string category, string description, Func<string[], Task> handler)
@@ -165,5 +181,68 @@ namespace ReconSageShell.Commands
         }
 
         public bool TryGetCommand(string name, out ShellCommand? command) => _commands.TryGetValue(name, out command);
+        private static string GetUserShell()
+        {
+            // Detect user's active shell from environment or fallback
+            string? shell = Environment.GetEnvironmentVariable("SHELL");
+            if (!string.IsNullOrEmpty(shell) && File.Exists(shell))
+                return shell;
+
+            return File.Exists("/bin/zsh") ? "/bin/zsh" : "/bin/bash";
+        }
+
+        private static async Task RunHostCommand(string fullCommand)
+        {
+            try
+            {
+                string shell = GetUserShell();
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = shell,
+                    Arguments = $"-c \"{fullCommand.Replace("\"", "\\\"")}\"",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = false,
+                    RedirectStandardError = false,
+                    RedirectStandardInput = false
+                };
+
+                using var proc = Process.Start(processInfo);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Shell execution failed: {ex.Message}");
+            }
+        }
+
+        private static async Task SpawnInteractiveSubshell()
+        {
+            try
+            {
+                string shell = GetUserShell();
+                Logger.Info($"Spawning interactive shell ({shell}). Type 'exit' to return to ReconSage.");
+
+                var processInfo = new ProcessStartInfo
+                {
+                    FileName = shell,
+                    UseShellExecute = false
+                };
+
+                using var proc = Process.Start(processInfo);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                }
+
+                Logger.Success("Returned to ReconSage shell.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"Failed to spawn subshell: {ex.Message}");
+            }
+        }
     }
 }

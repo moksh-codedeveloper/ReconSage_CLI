@@ -37,6 +37,23 @@ namespace ReconSageShell
                 string input = Console.ReadLine()?.Trim() ?? "";
                 if (string.IsNullOrEmpty(input)) continue;
 
+                // Instant bash/zsh command passthrough via '!'
+                if (input.StartsWith("!"))
+                {
+                    string hostCmd = input.Substring(1).Trim();
+                    if (!string.IsNullOrEmpty(hostCmd))
+                    {
+                        var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = Environment.GetEnvironmentVariable("SHELL") ?? "/bin/zsh",
+                            Arguments = $"-c \"{hostCmd.Replace("\"", "\\\"")}\"",
+                            UseShellExecute = false
+                        });
+                        proc?.WaitForExit();
+                    }
+                    continue;
+                }
+
                 string[] parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
                 string cmdName = parts[0].ToLower();
                 string[] args = parts.Length > 1 ? parts[1..] : Array.Empty<string>();
