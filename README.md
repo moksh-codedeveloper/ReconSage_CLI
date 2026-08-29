@@ -6,6 +6,33 @@ It bypasses standard HTTP client abstractions to interact directly with the kern
 
 ---
 
+## Interactive Shell Experience
+
+ReconSage features an interactive Metasploit-inspired orchestration shell (`RecoShell`) designed for real-time telemetry diagnostics and fast command execution:
+
+- **Dynamic Context Prompts:** Automatically binds to your active target once loaded (`reconsage (target.com) > `).
+- **Runtime Telemetry Status:** Live color-coded indicators tracking loaded configurations (`RSO:LOADED | RFO:LOADED | RXO:LOADED`).
+- **Seamless OS Shell Passthrough:** Execute system/network commands inline using `!` prefix or drop into an interactive subshell session (`zsh`/`bash`) without terminating the current recon context.
+- **Categorized Command Dispatcher:** Clean multi-file modular command routing with built-in help and diagnostics.
+
+```text
+    __________  ________________  _____  ___ __________
+    ___  __ \_  / __  __ \_  __ \__  / / /_  ____/_  _ \
+    __  /_/ /  /  _  / / /  / / /_  /_/ /_  / __ _  / / /
+    _  _, _// /___/ /_/ // /_/ /_  __  / / /_/ / / /_/ /
+    /_/ |_|/_____/\____/ /____/ /_/ /_/  \____/  \____/
+                                         v2.0 [ARCH-LINUX]
+--------------------------------------------------------------
+=[ ReconSage | Advanced Telemetry Framework ]=
++ -- --=[ Status: RSO:LOADED | RFO:LOADED | RXO:LOADED ]=
+--------------------------------------------------------------
+
+reconsage (www.google.com) >
+
+```
+
+---
+
 ## Architecture Overview
 
 ReconSage is designed as a modular, two-tier system:
@@ -17,16 +44,18 @@ ReconSage is designed as a modular, two-tier system:
 - Native ML pipelines (`Reco_GAN` and a custom C++ Isolation Forest tree training engine).
 
 - **C# Shell & Orchestration (`ReconSageShell`)**:
-- Async CLI shell managing scan lifecycles, configuration sessions, cancellation tokens, and database staging.
+- Modular async CLI shell managing scan lifecycles, configuration sessions, cancellation tokens, and database staging.
+- Encapsulated parser interfaces (`IFileParser<T>`) for clean config lifecycle management.
 - Bridges C# to native shared libraries (`.so`) via high-performance **P/Invoke** interop.
 
 - **`Generic_Module` Subsystem**:
 - Transport and socket interface (`wires.cpp`, `SocksModule.cpp`, `interface_scan_module.cpp`) providing unified stream and proxy abstraction across all scan modules.
 
-```
-reconsage.1> (C# Shell / SessionData Orchestration)
+```text
+reconsage (target.com) > (C# Shell / SessionData Orchestration)
       │
-      ├── Configuration Ingestion (.rfo / .rso / .rxo parsers)
+      ├── Configuration Ingestion (.rfo / .rso / .rxo via IFileParser<T>)
+      ├── Host OS Shell & Passthrough Integration (!cmd, exec, shell)
       ├── Generic_Module Bridge (wires.cpp / SocksModule.cpp)
       │
       ├── Scanning Engines (P/Invoke -> C++ .so):
@@ -101,7 +130,24 @@ sub_sample_size = 256
 
 ## Shell Command Reference
 
-### Configuration Loading
+### Core & Navigation
+
+| Command  | Arguments | Description                                                   |
+| -------- | --------- | ------------------------------------------------------------- |
+| `help`   | None      | Displays the categorized command menu and descriptions        |
+| `banner` | None      | Redraws the startup header with live loaded-profile telemetry |
+| `clear`  | None      | Clears the active console screen                              |
+| `exit`   | None      | Terminates active sessions and shuts down the framework       |
+
+### OS Shell & Subsystem Passthrough
+
+| Command          | Arguments | Description                                                                |
+| ---------------- | --------- | -------------------------------------------------------------------------- |
+| `!<command>`     | `<cmd>`   | Instant execution of a host command (e.g., `!nmap -sV`, `!ls -lh`)         |
+| `exec <command>` | `<cmd>`   | Explicitly invokes a shell command via your default `$SHELL` (zsh / bash)  |
+| `shell`          | None      | Drops into an interactive system subshell (type `exit` to return to shell) |
+
+### Configuration Loaders
 
 | Command    | Arguments | Description                                                          |
 | ---------- | --------- | -------------------------------------------------------------------- |
@@ -129,12 +175,12 @@ sub_sample_size = 256
 
 ### Native ML & Heuristic Engine
 
-| Command                | Dependencies | Description                                                                                                    |
-| ---------------------- | ------------ | -------------------------------------------------------------------------------------------------------------- |
-| `reco_gan_training`    | RFO, RXO     | Trains the native GAN model on target behavioral data using `k_factor`                                         |
-| `reco_gan_predict`     | RFO, RXO     | Runs generative path and behavior predictions on trained weights                                               |
-| `reco_gan_trees_train` | RFO, RXO     | Trains native C++ Isolation Forest trees (`num_trees`, `sub_sample_size`) to detect anomalous latency patterns |
-| `exit`                 | None         | Terminates active sessions and shuts down the shell                                                            |
+| Command                  | Dependencies | Description                                                                                                    |
+| ------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------- |
+| `reco_gan_training`      | RFO, RXO     | Trains the native GAN model on target behavioral data using `k_factor`                                         |
+| `reco_gan_predict`       | RFO, RXO     | Runs generative path and behavior predictions on trained weights                                               |
+| `reco_gan_trees_train`   | RFO, RXO     | Trains native C++ Isolation Forest trees (`num_trees`, `sub_sample_size`) to detect anomalous latency patterns |
+| `reco_gan_trees_predict` | RFO, RXO     | Evaluates target behavior against compiled Isolation Forest trees for anomaly scoring                          |
 
 ---
 
