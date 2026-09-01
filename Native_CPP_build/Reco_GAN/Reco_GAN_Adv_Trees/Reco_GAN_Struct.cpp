@@ -16,10 +16,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include <vector>
+using namespace std;
 
 struct ResponseBodyFilePath
 {
-    char domain[256] = {0};
+    char domain[3072] = {0};
     char response_body[4096] = {0};
     int statusCode = 0;
 };
@@ -38,5 +40,5 @@ struct ScoresStruct
     vector<double> Normal;
     vector<double> Standard;
     vector<double> Suspicious;
-    vector<double> Anonimous;
+    vector<double> Anomaly;
 };

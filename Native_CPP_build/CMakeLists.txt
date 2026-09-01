@@ -66,7 +66,7 @@ set_target_properties(reco_response_body_captio PROPERTIES
     PREFIX "res_body_scan_"
 )
 
-# 5. ML GAN Engine V1 (reco_gan_ml_module_cpp_module.so)
+# 5. ML GAN Engine (reco_gan_ml_module_cpp_module.so)
 add_library(reco_gan SHARED
     Reco_GAN/Reco_GAN_Training.cpp
     Reco_GAN/Reco_GAN_Module.cpp
@@ -76,7 +76,7 @@ set_target_properties(reco_gan PROPERTIES
     PREFIX "reco_gan_ml_module"
 )
 
-# 6. ML Latency Engine V2 / Isolation Forest (reco_gan_lat_v2_ml_module_cpp_module.so)
+# 6. ML Latency Engine / Isolation Forest (reco_gan_lat_v2_ml_module_cpp_module.so)
 add_library(reco_gan_adv_tree SHARED
     Reco_GAN/Reco_GAN_Adv_Trees/Training.cpp
     Reco_GAN/Reco_GAN_Adv_Trees/Predict.cpp
@@ -86,23 +86,33 @@ set_target_properties(reco_gan_adv_tree PROPERTIES
     PREFIX "reco_gan_lat_v2_ml_module"
 )
 
+
 # 7. Proxy Scanning Engine (proxy_scan_cpp_module.so)
 add_library(reco_proxy SHARED
-    Proxy_Scanning/HttpProxyScanModule.cpp
-    Proxy_Scanning/SockProxy_module.cpp
+Proxy_Scanning/HttpProxyScanModule.cpp
+Proxy_Scanning/SockProxy_module.cpp
 )
 target_link_libraries(reco_proxy PRIVATE OpenSSL::SSL OpenSSL::Crypto)
 set_target_properties(reco_proxy PROPERTIES
-    OUTPUT_NAME "cpp_module"
-    PREFIX "proxy_scan_"
+OUTPUT_NAME "cpp_module"
+PREFIX "proxy_scan_"
 )
 
 # 8. Database Compiler & Filter Engine (reco_novich_compiler_cpp_module.so)
 add_library(reco_novich SHARED
-    Compiler/compiler.cpp
+Compiler/compiler.cpp
 )
 target_compile_options(reco_novich PRIVATE -O3 -fPIC -march=native)
 set_target_properties(reco_novich PROPERTIES
+OUTPUT_NAME "_cpp_module"
+PREFIX "reco_novich_compiler"
+)
+
+# 9. Deterministic WAF Catcher
+add_library(reco_gan_waf_catcher_adv SHARED
+    Reco_GAN/Reco_GAN_Adv_Trees/Waf_Catcher.cpp
+)
+set_target_properties(reco_gan_waf_catcher_adv PROPERTIES
     OUTPUT_NAME "_cpp_module"
-    PREFIX "reco_novich_compiler"
+    PREFIX "reco_gan_waf_catcher"
 )
