@@ -32,3 +32,11 @@ struct iTreeNodes
     bool is_leaf;
     int split_value;
 };
+
+struct ScoresStruct
+{
+    vector<double> Normal;
+    vector<double> Standard;
+    vector<double> Suspicious;
+    vector<double> Anonimous;
+};
