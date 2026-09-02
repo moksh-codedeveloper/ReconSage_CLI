@@ -4,7 +4,7 @@
 #include <cstring>
 #include "Soft_404_Catcher.cpp"
 #include "Reco_GAN_Struct.cpp"
-
+#include "Predict.cpp"
 using namespace std;
 
 class WafCatcher
@@ -27,20 +27,26 @@ private:
                 scoreObj.Anomaly.push_back(dataPoint); // Renamed to Anomaly for clarity
         }
     }
+    char domain[256];
+    int s_sample_size;
+    vector<double> LiveLatency;
 
 public:
-    WafCatcher(const vector<double> &_scoresList, const char *_responseBodyFilePath)
-        : ScoresList(_scoresList)
+    WafCatcher(const char *_responseBodyFilePath, int subSampleSize, const char *_domain, vector<double> latencyLive)
+        : s_sample_size(subSampleSize), LiveLatency(latencyLive)
     {
         strncpy(responseBodyFilePath, _responseBodyFilePath, 511);
         responseBodyFilePath[511] = '\0';
+        strncpy(domain, _domain, 255);
+        domain[255] = '\0';
     }
 
     void WafHit()
     {
+        Reco_GAN_V2_Predict reco_gan_predict(domain, s_sample_size);
         ScoresStruct scoreSort;
+        ScoresList = reco_gan_predict.Score_List(LiveLatency);
         ScoresSort(scoreSort);
-
         Soft_404_Catcher _404_engine(responseBodyFilePath);
         vector<bool> mainSoft404sList = _404_engine.mainSoft404();
 
@@ -71,10 +77,10 @@ public:
 
 extern "C"
 {
-    void mainWafCatchingEngine(double *scorePointer, int scoreListSize, const char *responseBodyFilePath)
+    void mainWafCatchingEngine(double *liveLatencyPtr, int liveLatencySize, const char *responseBodyFilePath, int s_sample_size, const char *domain)
     {
-        vector<double> scoreList(scorePointer, scorePointer + scoreListSize);
-        WafCatcher wafEngine(scoreList, responseBodyFilePath);
+        vector<double> liveLatencyVector(liveLatencyPtr, liveLatencyPtr + liveLatencySize);
+        WafCatcher wafEngine(responseBodyFilePath, s_sample_size, domain, liveLatencyVector);
         wafEngine.WafHit();
     }
 }
