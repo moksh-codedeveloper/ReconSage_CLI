@@ -23,6 +23,7 @@ using Wire;
 using DB;
 using ReconSageLogger;
 using Reco_GAN_Latency_V2;
+using Reco_GAN_Waf_Catcher;
 
 namespace CompilerToDB
 {
@@ -93,6 +94,13 @@ namespace CompilerToDB
             List<double> latencyList = await dBModule.GetAllLatency();
             Latency_Module latency_Module = new Latency_Module(domain, latencyList);
             latency_Module.Predict(subsample_size);
+        }
+        public static async Task CatchWaf(string domain, int subsampleSize, string pass, string responseBodyFilePath)
+        {
+            DBModule dBModule = new DBModule(domain, pass);
+            List<double> latencyList = await dBModule.GetAllLatency();
+            Waf_Catcher waf = new Waf_Catcher(domain, responseBodyFilePath, latencyList, subsampleSize);
+            waf.CatchWaf();
         }
     }
 }

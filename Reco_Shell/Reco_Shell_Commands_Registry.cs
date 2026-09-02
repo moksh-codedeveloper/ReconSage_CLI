@@ -11,6 +11,7 @@ using Reco_GAN_Native;
 using ReconSageLogger;
 using SessionData_RecoShell;
 using Commands.RecoShell;
+using Reco_GAN_Waf_Catcher;
 namespace ReconSageShell.Commands
 {
     public class CommandRegistry
@@ -152,6 +153,12 @@ namespace ReconSageShell.Commands
                 if (!sessionData.isRfoLoaded || !sessionData.isRxoLoaded) { Logger.Warn("RFO RXO data_files not loaded!"); return; }
                 Logger.Info("Prediction on the following latency Data starts this minute...");
                 await JsonToDB.LatPredict(sessionData.rfoModel!.Target, sessionData.rxoModel!.sub_sample_size, sessionData.rxoModel!.db_password);
+            });
+            Add("reco_gan_catch_waf", "GAN Engine", "Deterministic Waf Catcher using Response Body we gathered from the targetted domain names", async _ =>
+            {
+                if (!sessionData.isRsoLoaded || !sessionData.isRxoLoaded || !sessionData.isRfoLoaded) { Logger.Warn("RFO RXO RSO data not loaded!"); }
+                Logger.Info("Waf Catching starts right here and now ....");
+                await JsonToDB.CatchWaf(sessionData.rfoModel!.Target, sessionData.rxoModel!.sub_sample_size, sessionData.rxoModel!.db_password, sessionData.rsoModel!.HtmlFile);
             });
             Add("shell", "OS Integration", "Spawn an interactive subshell session (zsh/bash)", _ => SpawnInteractiveSubshell());
 
