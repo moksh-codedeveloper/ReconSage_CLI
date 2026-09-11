@@ -1,8 +1,10 @@
 # ReconSage CLI
 
-**ReconSage** is an advanced behavioral reconnaissance scanner, telemetry pipeline, and predictive intelligence framework built from the ground up in **C++ and C#**.
+**ReconSage 1.0** is an advanced behavioral reconnaissance scanner, telemetry pipeline, and predictive intelligence framework built from the ground up in **C++ and C#**.
 
-It bypasses standard HTTP client abstractions to interact directly with the kernel and wire via raw POSIX syscalls (`socket()`, `connect()`, `send()`, `recv()`). Beyond raw scanning, ReconSage indexes response headers, captures raw HTML bodies, ingests operational metrics into a database engine, and applies custom native Machine Learning models (GANs and from-scratch Isolation Forest decision trees) for anomaly and latency behavior analysis.
+Designed as the V12 engine of network reconnaissance, ReconSage bypasses standard HTTP client abstractions to interact directly with the metal via raw POSIX syscalls (`socket()`, `connect()`, `send()`, `recv()`). It features a completely custom, byte-level DNS stack (dropping libc `getaddrinfo`), strictly TCP-bound Tor routing to preserve latency math, and native Machine Learning models (GANs and from-scratch Isolation Forest decision trees) for real-time WAF anomaly detection.
+
+> **The Origins of ReconSage:** ReconSage began years ago as an experimental Python script. ReconSage 1.0 represents a complete, ground-up architectural rewrite into a unified C++ core and C# orchestrator to deliver untamed, zero-bottleneck performance and dynamically compiled ML reconnaissance.
 
 ---
 
@@ -12,7 +14,7 @@ ReconSage features an interactive Metasploit-inspired orchestration shell (`Reco
 
 - **Dynamic Context Prompts:** Automatically binds to your active target once loaded (`reconsage (target.com) > `).
 - **Runtime Telemetry Status:** Live color-coded indicators tracking loaded configurations (`RSO:LOADED | RFO:LOADED | RXO:LOADED`).
-- **Seamless OS Shell Passthrough:** Execute system/network commands inline using `!` prefix or drop into an interactive subshell session (`zsh`/`bash`) without terminating the current recon context.
+- **Seamless OS Shell Passthrough:** Execute system/network commands inline using the `!` prefix or drop into an interactive subshell session (`zsh`/`bash`) without terminating the current recon context.
 - **Categorized Command Dispatcher:** Clean multi-file modular command routing with built-in help and diagnostics.
 
 ```text
@@ -21,7 +23,7 @@ ReconSage features an interactive Metasploit-inspired orchestration shell (`Reco
     __  /_/ /  /  _  / / /  / / /_  /_/ /_  / __ _  / / /
     _  _, _// /___/ /_/ // /_/ /_  __  / / /_/ / / /_/ /
     /_/ |_|/_____/\____/ /____/ /_/ /_/  \____/  \____/
-                                         v2.0 [ARCH-LINUX]
+                                         v1.0.0 [ARCH-LINUX]
 --------------------------------------------------------------
 =[ ReconSage | Advanced Telemetry Framework ]=
 + -- --=[ Status: RSO:LOADED | RFO:LOADED | RXO:LOADED ]=
@@ -35,42 +37,35 @@ reconsage (www.google.com) >
 
 ## Architecture Overview
 
-ReconSage is designed as a modular, two-tier system:
+ReconSage is designed as a hyper-optimized, two-tier system communicating via high-performance **P/Invoke** interop:
 
-- **C++ Native Engine Core (`Native_CPP_build/`)**:
-- Direct POSIX socket operations and raw wire-framing without third-party HTTP wrappers.
-- Custom byte-level DNS resolution (`ReconDNS`) replacing libc `getaddrinfo()`.
-- TLS 1.2+ encryption pipelines layered directly over sockets using OpenSSL.
-- Native ML pipelines (`Reco_GAN` and a custom C++ Isolation Forest tree training engine).
+1. **C# Shell & Orchestration (`ReconSageShell`)**:
 
-- **C# Shell & Orchestration (`ReconSageShell`)**:
 - Modular async CLI shell managing scan lifecycles, configuration sessions, cancellation tokens, and database staging.
 - Encapsulated parser interfaces (`IFileParser<T>`) for clean config lifecycle management.
-- Bridges C# to native shared libraries (`.so`) via high-performance **P/Invoke** interop.
 
-- **`Generic_Module` Subsystem**:
-- Transport and socket interface (`wires.cpp`, `SocksModule.cpp`, `interface_scan_module.cpp`) providing unified stream and proxy abstraction across all scan modules.
+2. **C++ Native Umbrella Engine (`reconsage_native.so`)**:
+
+- A single, monolithic compiled engine housing all scanning, DNS, and ML logic for zero-bottleneck memory sharing.
+- Native ML pipelines running custom Isolation Forest algorithms and Deterministic WAF Catchers natively in memory.
 
 ```text
 reconsage (target.com) > (C# Shell / SessionData Orchestration)
       │
       ├── Configuration Ingestion (.rfo / .rso / .rxo via IFileParser<T>)
       ├── Host OS Shell & Passthrough Integration (!cmd, exec, shell)
-      ├── Generic_Module Bridge (wires.cpp / SocksModule.cpp)
       │
-      ├── Scanning Engines (P/Invoke -> C++ .so):
-      │     ├── ScanModule.so           → Direct POSIX TCP/TLS probing
-      │     ├── TorScan.so              → SOCKS5 + Tor Control Circuit Rotation (SIGNAL NEWNYM)
-      │     ├── Proxy_Scanning.so       → HTTP & SOCKS proxy routing
-      │     ├── ReconDNS.so             → Wire-level DNS resolver (bypasses libc addrinfo)
-      │     └── Response_Body_capture.so→ Raw HTML/payload and header stream extraction
-      │
-      ├── Storage & Filtering Engine:
-      │     └── CompilerToDB.so         → JSON-to-DB indexing, status code & latency filtering
-      │
-      └── Native ML Engine:
-            ├── Reco_GAN                → Generative path prediction & target intelligence
-            └── Reco_GAN_Trees (iForest)→ From-scratch C++ Isolation Forest latency analysis
+      └── Unified Native Engine (P/Invoke -> reconsage_native.so):
+            ├── POSIX Scan Engine       → Direct TCP/TLS probing with OpenSSL
+            ├── Tor Routing Engine      → SOCKS5 + Tor Control Circuit Rotation (TCP ONLY)
+            ├── Proxy Engine            → HTTP & SOCKS proxy routing
+            ├── Custom DNS Stack        → Wire-level resolver (bypasses OS locks)
+            ├── Capture Engine          → Raw HTML/payload and header stream extraction
+            ├── Database Compiler       → JSON-to-DB indexing, status code & latency filters
+            └── ML & Heuristics Core:
+                  ├── Reco_GAN          → Generative path prediction
+                  ├── iForest Trees     → Custom C++ Isolation Forest latency analysis
+                  └── WAF Catcher       → Tarpit / Soft-404 deterministic correlation
 
 ```
 
@@ -98,7 +93,7 @@ password    = your_tor_control_password
 
 ### 2. `.rso` — Recon Scan Options
 
-Controls scan timings, paths, wordlists, and capture targets.
+Controls scan timings, jitter/delays, wordlists, and capture targets.
 
 ```ini
 [scan]
@@ -141,88 +136,70 @@ sub_sample_size = 256
 
 ### OS Shell & Subsystem Passthrough
 
-| Command          | Arguments | Description                                                                |
-| ---------------- | --------- | -------------------------------------------------------------------------- |
-| `!<command>`     | `<cmd>`   | Instant execution of a host command (e.g., `!nmap -sV`, `!ls -lh`)         |
-| `exec <command>` | `<cmd>`   | Explicitly invokes a shell command via your default `$SHELL` (zsh / bash)  |
-| `shell`          | None      | Drops into an interactive system subshell (type `exit` to return to shell) |
-
-### Configuration Loaders
-
-| Command    | Arguments | Description                                                          |
-| ---------- | --------- | -------------------------------------------------------------------- |
-| `load_rfo` | `<path>`  | Ingests target, DNS, and proxy credentials from a `.rfo` file        |
-| `load_rso` | `<path>`  | Ingests scan timings, wordlists, and output paths from a `.rso` file |
-| `load_rxo` | `<path>`  | Ingests database and ML parameters from a `.rxo` file                |
+| Command          | Arguments | Description                                                        |
+| ---------------- | --------- | ------------------------------------------------------------------ |
+| `!<command>`     | `<cmd>`   | Instant execution of a host command (e.g., `!nmap -sV`, `!ls -lh`) |
+| `exec <command>` | `<cmd>`   | Explicitly invokes a shell command via your default `$SHELL`       |
+| `shell`          | None      | Drops into an interactive system subshell (type `exit` to return)  |
 
 ### Scanning Modules
 
 | Command                  | Dependencies | Description                                                         |
 | ------------------------ | ------------ | ------------------------------------------------------------------- |
-| `start_scan_cpp`         | RFO, RSO     | Executes direct POSIX socket scan with OpenSSL TLS and ReconDNS     |
+| `start_scan_cpp`         | RFO, RSO     | Executes direct POSIX socket scan with OpenSSL TLS and Custom DNS   |
 | `start_tor_scan`         | RFO, RSO     | Executes anonymous scan over Tor SOCKS5 with auto-circuit switching |
 | `start_http_proxy_scan`  | RFO, RSO     | Routes custom HTTP probing requests through an upstream HTTP proxy  |
 | `start_socks_proxy_scan` | RFO, RSO     | Tunnels scan through an arbitrary SOCKS proxy                       |
 | `start_cpp_body_capture` | RFO, RSO     | Captures raw response HTML bodies and headers directly to disk      |
 
-### Database & Compiler Pipeline
-
-| Command                                    | Dependencies  | Description                                                              |
-| ------------------------------------------ | ------------- | ------------------------------------------------------------------------ |
-| `transfer_json_to_db`                      | RFO, RSO, RXO | Indexes generated JSON scan results, headers, and HTML into the database |
-| `compile_db_and_based_on_status_code_save` | RFO, RXO      | Filters and compiles database records filtered by HTTP status code       |
-| `compile_db_and_based_on_latency_save`     | RFO, RXO      | Filters and compiles database records based on response latency metrics  |
-
 ### Native ML & Heuristic Engine
 
-| Command                  | Dependencies | Description                                                                                                    |
-| ------------------------ | ------------ | -------------------------------------------------------------------------------------------------------------- |
-| `reco_gan_training`      | RFO, RXO     | Trains the native GAN model on target behavioral data using `k_factor`                                         |
-| `reco_gan_predict`       | RFO, RXO     | Runs generative path and behavior predictions on trained weights                                               |
-| `reco_gan_trees_train`   | RFO, RXO     | Trains native C++ Isolation Forest trees (`num_trees`, `sub_sample_size`) to detect anomalous latency patterns |
-| `reco_gan_trees_predict` | RFO, RXO     | Evaluates target behavior against compiled Isolation Forest trees for anomaly scoring                          |
+| Command                  | Dependencies | Description                                                                   |
+| ------------------------ | ------------ | ----------------------------------------------------------------------------- |
+| `reco_gan_training`      | RFO, RXO     | Trains the native GAN model on target behavioral data using `k_factor`        |
+| `reco_gan_predict`       | RFO, RXO     | Runs generative path and behavior predictions on trained weights              |
+| `reco_gan_trees_train`   | RFO, RXO     | Trains native C++ Isolation Forest trees to detect anomalous latencies        |
+| `reco_gan_trees_predict` | RFO, RXO     | Evaluates target behavior against compiled trees for anomaly scoring          |
+| `reco_gan_catch_waf`     | RFO, RXO     | Deterministic WAF catcher combining structural analysis and latency profiling |
 
 ---
 
-## Building the Native C++ Modules
+## Installation & Compilation
+
+ReconSage is optimized for Arch Linux but supports any POSIX-compliant environment with .NET 10.0+.
+
+### Arch Linux (AUR)
+
+The easiest way to install the stable release on Arch-based systems:
+
+```bash
+yay -S reconsage
+
+```
+
+### Manual Build From Source
 
 The native core requires **OpenSSL** development headers and a C++17 compliant compiler.
 
-### Build with CMake (Recommended)
+**1. Compile the C++ Engine (CMake Recommended):**
 
 ```bash
 cd Native_CPP_build
-mkdir -p build && cd build
-cmake ..
-make
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j$(nproc)
 
 ```
 
-### Build with g++ Directly
+**2. Compile the C# Orchestrator:**
 
 ```bash
-cd Native_CPP_build
-
-# Compile Generic Transport Module
-g++ -shared -fPIC -O3 -o Generic_Module.so Generic_Module/*.cpp -lssl -lcrypto
-
-# Compile Core Scan & Capture Engines
-g++ -shared -fPIC -O3 -o ScanModule.so ScanModule/*.cpp -lssl -lcrypto
-g++ -shared -fPIC -O3 -o TorScan.so TorScan/*.cpp -lssl -lcrypto
-g++ -shared -fPIC -O3 -o Proxy_Scanning.so Proxy_Scanning/*.cpp -lssl -lcrypto
-g++ -shared -fPIC -O3 -o Response_Body_capture.so Response_Body_capture/*.cpp -lssl -lcrypto
-
-# Compile ML & Tree Engines
-g++ -shared -fPIC -O3 -o Reco_GAN.so Reco_GAN/*.cpp
-g++ -shared -fPIC -O3 -o CompilerToDB.so Compiler/*.cpp
+cd ..
+dotnet build -c Release
 
 ```
 
----
-
-## Running the Application
-
-Ensure your compiled `.so` libraries are present in your library lookup path (or working directory), then launch the orchestrator:
+Ensure the compiled `reconsage_native.so` library is present in your binary output directory (e.g., `bin/Debug/net10.0/`), then launch the orchestrator:
 
 ```bash
 dotnet run
@@ -234,8 +211,8 @@ dotnet run
 ## System Requirements
 
 - **Operating System:** Linux (POSIX-compliant; optimized for Arch Linux)
-- **Runtime:** .NET 8.0+ SDK
-- **Compiler:** `cmake` (3.16+) or `g++` (C++17 standard)
+- **Runtime:** .NET 10.0 SDK
+- **Compiler:** `cmake` (3.20+) or `g++` (C++17 standard)
 - **Libraries:** OpenSSL (`libssl-dev` / `openssl`)
 - **Proxy Services (Optional):** Active Tor daemon on port `9050` with Control Port enabled on `9051`
 
@@ -243,7 +220,7 @@ dotnet run
 
 ## License
 
-This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the [LICENSE](https://www.google.com/search?q=LICENSE) file in the root repository for the complete license text.
+This project is licensed under the **GNU General Public License v3.0 (GPL-3.0)**. See the `LICENSE` file in the root repository for the complete text.
 
 ---
 
