@@ -16,7 +16,6 @@
 #include <fstream>
 #include <cstring>
 #include <cstdlib>
-
 using namespace std;
 
 class Reco_GAN_V2_Predict

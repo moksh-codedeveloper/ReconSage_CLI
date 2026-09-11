@@ -4,7 +4,7 @@
 #include <cstring>
 #include "Soft_404_Catcher.cpp"
 #include "Reco_GAN_Struct.cpp"
-#include "Predict.cpp"
+#include "Predict.hpp"
 using namespace std;
 
 class WafCatcher
@@ -44,6 +44,12 @@ public:
     void WafHit()
     {
         Reco_GAN_V2_Predict reco_gan_predict(domain, s_sample_size);
+        bool isExtracted = reco_gan_predict.LoadModel();
+        if (!isExtracted)
+        {
+            cout << "I think something has gone wrong while we try to load the module of Reco_GAN here in here so exiting the WafHit function..." << endl;
+            return;
+        }
         ScoresStruct scoreSort;
         ScoresList = reco_gan_predict.Score_List(LiveLatency);
         ScoresSort(scoreSort);
