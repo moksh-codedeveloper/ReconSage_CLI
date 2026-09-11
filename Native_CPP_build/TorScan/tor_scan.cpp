@@ -229,7 +229,7 @@ public:
 
 extern "C"
 {
-    void *create_engine(char domain[256], char proto_port[128], char headers[8192], char tor_ip[256], char password[8192], int timeout, int tor_port, int cp_tor_port)
+    void *create_engine_tor(char domain[256], char proto_port[128], char headers[8192], char tor_ip[256], char password[8192], int timeout, int tor_port, int cp_tor_port)
     {
         return new Scan(domain, proto_port, headers, tor_ip, password, timeout, tor_port, cp_tor_port);
     }

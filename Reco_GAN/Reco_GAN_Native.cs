@@ -22,9 +22,9 @@ namespace Reco_GAN_Native
 {
     public class Reco_GAN
     {
-        [DllImport("reco_gan_ml_module_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void RecoGAN_Predict(string domain, double k_factor);
-        [DllImport("reco_gan_ml_module_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void reco_gan_training_data_save(string domain, double k_factor);
         private string domain = string.Empty;
         private double k_factor;

@@ -29,9 +29,9 @@ namespace Reco_GAN_Latency_V2
             public int sub_sample_size;
             public int num_trees;
         }
-        [DllImport("reco_gan_lat_v2_ml_module_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void reco_Gan_V2(reco_gan_v2 packet);
-        [DllImport("reco_gan_lat_v2_ml_module_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void reco_Gan_V2_predict(string domain, int subsample_size, IntPtr latency_list, int latency_size);
         private List<double> latencyDataSet = new();
         private string domain = string.Empty;

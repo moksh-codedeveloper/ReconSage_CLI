@@ -47,7 +47,7 @@ namespace TorConfigParser
     public class RfoParser : IFileParser<RfoParsedModel>
     {
         // P/Invoke bridge updated to handle stack allocation via "out" keyword
-        [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppParserConfig parse_rfo(string filename);
 
         // free_parser is completely removed since memory is allocated on the C# stack frame!

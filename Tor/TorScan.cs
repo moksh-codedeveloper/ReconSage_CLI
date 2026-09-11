@@ -27,8 +27,8 @@ namespace TorScan
     public class MainTorScan : INetwork
     {
         // FIX 1: Exact byte-by-byte sequence matching with C++ extern "C" create_engine parameters
-        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr create_engine(
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr create_engine_tor(
             string domain,      // char domain[256]
             string proto_port,  // char proto_port[128]
             string headers,     // char headers[8192]
@@ -39,10 +39,10 @@ namespace TorScan
             int cp_tor_port     // int cp_tor_port
         );
 
-        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput tor_scan_engine(string path, IntPtr engine, ref bool cancelFlag);
 
-        [DllImport("tor_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void destroy_tor_engine(IntPtr engine);
 
         private string Target = string.Empty;
@@ -73,12 +73,12 @@ namespace TorScan
             var randomJitter = new Random();
             var jitter = randomJitter.Next(Delay, Delay * 10);
             Logger.Info($"Delay :- {jitter}");
-            
+
             await Task.Delay(jitter, cts);
-            
+
             bool cancelFlag = false;
             var scan = new ScanOutput();
-            
+
             using (cts.Register(() =>
             {
                 cancelFlag = true;
@@ -88,17 +88,17 @@ namespace TorScan
                 if (cts.IsCancellationRequested) return scan;
 
                 // FIX 2: Sequenced values passed in precise order to match the DLL stack allocation layout
-                IntPtr engine = create_engine(
-                    domain: Target, 
-                    proto_port: Port, 
-                    headers: "", 
-                    tor_ip: TorIP, 
-                    password: Password, 
-                    timeout: Timeout, 
-                    tor_port: TorPort, 
+                IntPtr engine = create_engine_tor(
+                    domain: Target,
+                    proto_port: Port,
+                    headers: "",
+                    tor_ip: TorIP,
+                    password: Password,
+                    timeout: Timeout,
+                    tor_port: TorPort,
                     cp_tor_port: CpTorPort
                 );
-                
+
                 if (engine == IntPtr.Zero)
                 {
                     Logger.Error("Failed to initialize unmanaged Tor Engine context pointer.");
@@ -106,7 +106,7 @@ namespace TorScan
                 }
 
                 string cleanPath = domain.StartsWith("/") ? domain : "/" + domain;
-                
+
                 try
                 {
                     CppScanOutput torScanModel = tor_scan_engine(cleanPath, engine, ref cancelFlag);
@@ -119,7 +119,7 @@ namespace TorScan
 
                     var oldHeaders = torScanModel.response_headers;
                     Dictionary<string, string> newHeaders = wires.ParseHeaders(oldHeaders);
-                    
+
                     scan.Target = torScanModel.domain;
                     scan.LatencyMS = torScanModel.latency_ms;
                     scan.StatusCode = torScanModel.status_code;
@@ -135,7 +135,7 @@ namespace TorScan
                 {
                     destroy_tor_engine(engine);
                 }
-                
+
                 return scan;
             }
         }

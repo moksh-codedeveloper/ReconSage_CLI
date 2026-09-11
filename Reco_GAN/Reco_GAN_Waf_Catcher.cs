@@ -9,7 +9,7 @@ namespace Reco_GAN_Waf_Catcher
         private int liveLatencySize;
         private int subSampleSize;
         private string Domain = string.Empty;
-        [DllImport("reco_gan_waf_catcher_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private extern static void mainWafCatchingEngine(IntPtr liveLatencyPtr, int liveLatencySize, string responseBodyFilePath, int s_sample_size, string domain);
         public Waf_Catcher(string domain, string _responseBodyFilePath, List<double> liveLatencyList, int s_sampleSize)
         {

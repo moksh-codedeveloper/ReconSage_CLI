@@ -41,13 +41,13 @@ namespace Capture
             timeout = Timeout;
         }
 
-        [DllImport("res_body_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr create_res_body_capture_engine(string domain, string proxy_host, string proto_port, string dns_server, int proxy_port, int timeout);
 
-        [DllImport("res_body_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern BodyStruct res_cap_scan(IntPtr engine, string path, ref bool cancelFlag);
 
-        [DllImport("res_body_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void destroy_res_captio_engine(IntPtr engine);
 
         public ScanResponseBodyModel Scan(string path, CancellationToken cts)

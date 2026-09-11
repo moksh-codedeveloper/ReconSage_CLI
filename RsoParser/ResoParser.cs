@@ -44,7 +44,7 @@ namespace ResoParser
     public class RsoParser : IFileParser<RModel>
     {
         // P/Invoke bridge updated to handle native execution over the unmanaged stack frame
-        [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppRsoParserConfig parse_config(string filename);
 
         public string RsoFilePath { set; get; } = string.Empty;

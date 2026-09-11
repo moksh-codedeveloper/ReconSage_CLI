@@ -33,13 +33,13 @@ namespace SocksProxyModule
         private int ProxyPort;
         private int Delay;
 
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr socks_create(string domain, string proto_port, string proxy_host, string headers, int timeout, int proxy_port);
-        
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput socks_scan(string path, IntPtr engine, ref bool cancel_flag);
 
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void socks_destroy(IntPtr engine);
 
         public SocksScan(string target, string proxy_host, string proto_port, string headers, int timeout, int proxy_port, int delay)

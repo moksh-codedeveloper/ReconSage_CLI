@@ -26,14 +26,14 @@ namespace NormalScan
 {
     public class CppScan : INetwork
     {
-        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern IntPtr create_engine(string path, string proto_port, int timeout, string headers, string dns_server);
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern IntPtr create_engine_scan(string path, string proto_port, int timeout, string headers, string dns_server);
 
-        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput engine_scan(IntPtr engine, string path, ref bool cancelFlag);
 
-        [DllImport("scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
-        private static extern void engine_destroy(IntPtr engine);
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void engine_destroy_scan(IntPtr engine);
 
         private string Target = string.Empty;
         private int Timeout;
@@ -55,11 +55,11 @@ namespace NormalScan
         public async Task<ScanOutput> SendAsync(string path, CancellationToken cts)
         {
             var scanOutput = new ScanOutput();
-            IntPtr engine = create_engine(Target, port, Timeout, Headers, DNSServer);
-            
+            IntPtr engine = create_engine_scan(Target, port, Timeout, Headers, DNSServer);
+
             // Shared cancellation state across managed/unmanaged boundary
             bool cancelFlag = false;
-            
+
             // FIX 1: Safely handle cancellation token without double-free race conditions
             using (cts.Register(() =>
             {
@@ -72,38 +72,38 @@ namespace NormalScan
                 Random jitter = new Random();
                 var value = jitter.Next(Delay, Delay * 100);
                 Logger.Info($"Delay in scan :- {value}");
-                
+
                 // Handling pre-scan async delay tracking
-                await Task.Delay(value, cts); 
+                await Task.Delay(value, cts);
 
                 if (cts.IsCancellationRequested)
                 {
-                    engine_destroy(engine);
+                    engine_destroy_scan(engine);
                     return scanOutput;
                 }
 
                 string cleanPath = path.StartsWith("/") ? path : "/" + path;
-                
+
                 // Execute unmanaged scanner assembly block safely
                 CppScanOutput resultPtr = engine_scan(engine, cleanPath, ref cancelFlag);
-                
+
                 if (cts.IsCancellationRequested)
                 {
-                    engine_destroy(engine);
+                    engine_destroy_scan(engine);
                     return scanOutput;
                 }
 
                 string resHeader = resultPtr.response_headers;
                 var headers = new GlobalWires().ParseHeaders(resHeader);
-                
+
                 scanOutput.Headers = headers;
                 scanOutput.StatusCode = resultPtr.status_code;
                 scanOutput.Message = resultPtr.reason_phrase;
                 scanOutput.LatencyMS = resultPtr.latency_ms;
                 scanOutput.Target = resultPtr.domain;
-                
+
                 // FIX 2: Single, unified destroy footprint at the end of normal execution channel
-                engine_destroy(engine);
+                engine_destroy_scan(engine);
                 return scanOutput;
             }
         }

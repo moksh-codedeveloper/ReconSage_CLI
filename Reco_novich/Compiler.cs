@@ -23,7 +23,7 @@ namespace Reco_novich_compiler
 {
     public class Reco_novich
     {
-        [DllImport("reco_novich_compiler_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern void compile_telemetry_save_file(CompilerDataPacket data_packet);
         public void CompileAndSave(CompilerDataModel model)
         {

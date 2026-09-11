@@ -107,7 +107,7 @@ public:
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
         auto start = chrono::high_resolution_clock::now();
 
-        if (connect(sock, (struct sockaddr*)&target_addr, sizeof(target_addr)) < 0)
+        if (connect(sock, (struct sockaddr *)&target_addr, sizeof(target_addr)) < 0)
         {
             cout << "[ERROR C++] Something wrong while trying to connect with the target" << endl;
             close(sock);
@@ -157,7 +157,7 @@ public:
 
 extern "C"
 {
-    void *create_engine(char domain[256], char proto_port[128], int timeout, char headers[8192], char dns_server[256])
+    void *create_engine_scan(char domain[256], char proto_port[128], int timeout, char headers[8192], char dns_server[256])
     {
         return new CppScanModule(domain, proto_port, headers, timeout, dns_server);
     }
@@ -167,7 +167,7 @@ extern "C"
             return ScanOutputStruct();
         return static_cast<CppScanModule *>(engine)->scan(path, cancel_flag);
     }
-    void engine_destroy(void *engine)
+    void engine_destroy_scan(void *engine)
     {
         if (engine)
         {

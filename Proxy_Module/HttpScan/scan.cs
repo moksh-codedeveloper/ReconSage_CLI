@@ -25,13 +25,13 @@ namespace HttpScan
 {
     public class HttpProxyScan : INetwork
     {
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern IntPtr http_create(string domain, string proto_port, string headers, string proxy_host, int timeout, int proxy_port);
 
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern CppScanOutput http_scan(IntPtr res, string path, ref bool CancelFlag);
 
-        [DllImport("proxy_scan_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
 
         private static extern void http_engine_destroy(IntPtr engine);
 

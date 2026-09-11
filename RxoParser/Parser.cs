@@ -34,7 +34,7 @@ namespace RxoParser
     }
     public class Parser : IFileParser<Model>
     {
-        [DllImport("parser_cpp_module.so", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("reconsage_native.so", CallingConvention = CallingConvention.Cdecl)]
         private static extern RxoStruct rxo_parse(string fileName);
         private string file = string.Empty;
         public Parser(string FileName)
