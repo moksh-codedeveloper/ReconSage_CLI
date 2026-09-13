@@ -15,28 +15,28 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
 
-#include "Reco_GAN_Struct.cpp"
 #include <vector>
+#include <cstdint>
+#include <iostream>
+#include <cstring>
+#include "compiler_struct.hpp"
 
-class Reco_GAN_V2_Predict
+using namespace std;
+
+class StatusCodeCompiler
 {
 private:
-    char domain[256] = {0};
-    int subsample_size;
-    std::vector<std::vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
-
-    double calculate_c(double m) const;
-    double pathLength(const std::vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const;
-    void buildFullFilePath(char out_path[512]);
-    double Score(double live_latency) const;
+    vector<int> status_code_arr;
+    char domain[256];
+    vector<int> CommonCodes = {200, 204, 201, 301, 302, 400, 401, 404, 403, 429, 500, 503, 0, 999};
+    vector<int> StatusCodesFallback = {207, 422, 507, 307, 308, 407, 451, 444, 499, 521};
+    uint16_t codes_to_hex(int code);
+    uint16_t adv_codes_to_hex(int code);
+    uint16_t other_no_codes_match_to_hex(int code);
+    vector<uint16_t> arr_codes_to_hex();
 
 public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample);
-
-    bool LoadModel();
-    std::vector<double> Score_List(const std::vector<double> &latency_list) const;
+    StatusCodeCompiler(vector<int> _status_code_arr, char _domain[256]);
+    Compiler_Struct Compile();
 };

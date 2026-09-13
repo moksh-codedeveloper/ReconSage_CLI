@@ -20,9 +20,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <cstring>
-#include "../ReconDNS/TorDomainStack.cpp"
-#include "../ReconDNS/DomainStruct.cpp"
-#include "../Generic_Module/wires.cpp"
+#include "../ReconDNS/TorDomainStack.hpp"
+#include "../ReconDNS/DomainStruct.hpp"
+#include "../Generic_Module/wires.hpp"
 #include <string>
 #include <openssl/ssl.h>
 #include <openssl/err.h>

@@ -15,13 +15,13 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#include "../Generic_Module/SocksModule.cpp"
+#include "../Generic_Module/SocksModule.hpp"
 #include <chrono>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include "../Generic_Module/wires.cpp"
-#include "../Generic_Module/output_struct.cpp"
-#include "../Generic_Module/interface_scan_module.cpp"
+#include "../Generic_Module/wires.hpp"
+#include "../Generic_Module/output_struct.hpp"
+#include "../Generic_Module/interface_scan_module.hpp"
 using namespace std;
 
 class SocksScan

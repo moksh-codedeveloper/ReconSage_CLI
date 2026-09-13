@@ -22,8 +22,8 @@
 #include <iostream>
 #include <cstring>
 #include <chrono>
-#include "../Generic_Module/interface_scan_module.cpp"
-#include "../ReconDNS/DomainStack.cpp"
+#include "../Generic_Module/interface_scan_module.hpp"
+#include "../ReconDNS/DomainStack.hpp"
 
 using namespace std;
 

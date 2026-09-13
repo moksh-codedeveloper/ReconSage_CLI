@@ -15,28 +15,38 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
 
-#include "Reco_GAN_Struct.cpp"
+#include <sys/socket.h>
+#include <cstring>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <iostream>
 #include <vector>
 
-class Reco_GAN_V2_Predict
+using namespace std;
+
+class SocksProxy
 {
 private:
-    char domain[256] = {0};
-    int subsample_size;
-    std::vector<std::vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
-
-    double calculate_c(double m) const;
-    double pathLength(const std::vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const;
-    void buildFullFilePath(char out_path[512]);
-    double Score(double live_latency) const;
+    char domain[256];
+    char proxy_host[256];
+    int timeout;
+    int proxy_port;
+    int proto_port;
+    struct timeval tv;
+    vector<string> error_msg = {
+        "general SOCKS server failure",
+        "connection not allowed by ruleset",
+        "Network unreachable",
+        "Host unreachable",
+        "Connection refused",
+        "TTL expired",
+        "Command not supported",
+        "Address type not supported",
+        "to X’FF’ unassigned"};
+    string msg_according_to_code(uint8_t code);
 
 public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample);
-
-    bool LoadModel();
-    std::vector<double> Score_List(const std::vector<double> &latency_list) const;
+    SocksProxy(char _domain[256], char _proxy_host[256], int _timeout, int _proxy_port, int _proto_port);
+    int SockTunnel();
 };

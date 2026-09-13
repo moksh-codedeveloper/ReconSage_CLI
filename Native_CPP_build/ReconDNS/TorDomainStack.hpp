@@ -15,28 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
-
-#include "Reco_GAN_Struct.cpp"
+#include <iostream>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <cstring>
+#include <unistd.h>
+#include "DomainStruct.hpp"
 #include <vector>
+#include <cstdint>
+#include <chrono>
+#include <string>
+#include "../Generic_Module/SocksModule.hpp"
+#include "../Generic_Module/wires.hpp"
 
-class Reco_GAN_V2_Predict
+using namespace std;
+
+class TorDnsResolver
 {
 private:
-    char domain[256] = {0};
-    int subsample_size;
-    std::vector<std::vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
-
-    double calculate_c(double m) const;
-    double pathLength(const std::vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const;
-    void buildFullFilePath(char out_path[512]);
-    double Score(double live_latency) const;
+    char domain[256];
+    char dns_server[256];
+    char proxy_host[256];
+    int proxy_port;
+    int timeout;
+    struct timeval tv;
 
 public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample);
-
-    bool LoadModel();
-    std::vector<double> Score_List(const std::vector<double> &latency_list) const;
+    TorDnsResolver(char _domain[256], int _dns_timeout, char _dns_server[256], char _proxy_host[256], int _proxy_port);
+    string resolvede();
 };

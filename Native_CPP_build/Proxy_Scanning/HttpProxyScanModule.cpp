@@ -19,9 +19,9 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <chrono>
-#include "../Generic_Module/interface_scan_module.cpp"
-#include "../Generic_Module/output_struct.cpp"
-#include "../Generic_Module/wires.cpp"
+#include "../Generic_Module/interface_scan_module.hpp"
+#include "../Generic_Module/output_struct.hpp"
+#include "../Generic_Module/wires.hpp"
 struct HttpScanOutput
 {
     char domain[3072];

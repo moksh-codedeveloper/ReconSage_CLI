@@ -15,26 +15,22 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
 
-struct GenericStruct{
-    char domain[3072];
-    char headers[65536];
-};
+#include <vector>
+#include <string>
+#include <cstring>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+using namespace std;
 
-struct ProxyScanOutputModel
+class MessageToTensar
 {
-    char domain[3072];
-    char headers[65536];
-    char reason_phrase[128];
-    int status_code;
-    double latency_ms;
-};
+private:
+    vector<string> reason_phrases;
+    const int TENSOR_SIZE = 12;
 
-struct ScanOutputStruct{
-    char domain[3072];
-    char headers[65536];
-    char reason_phrase[128];
-    int status_code;
-    double latency_ms;
+public:
+    MessageToTensar(vector<string> _reason_phrases);
+    vector<vector<double>> CompileBatch();
 };

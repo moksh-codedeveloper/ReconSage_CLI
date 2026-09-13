@@ -15,13 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#pragma once
-#include <cstdint>
-#include <vector>
-#include <string>
-#include <chrono>
-#include <cstring>
-using namespace std;
+#include "wires.hpp"
 
 inline vector<uint8_t> encode_dns_name(string domain)
 {

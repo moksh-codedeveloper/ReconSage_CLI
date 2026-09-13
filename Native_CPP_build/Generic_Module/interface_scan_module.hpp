@@ -15,28 +15,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
+#include <netdb.h>
+#include <unistd.h>
+#include <cstdio>
+#include "output_struct.hpp"
+#include <cstring>
+#include <iostream>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <chrono>
+#include <sstream>
+#include <string>
+using namespace std;
 
-#include "Reco_GAN_Struct.cpp"
-#include <vector>
-
-class Reco_GAN_V2_Predict
+class GenericInterface
 {
 private:
-    char domain[256] = {0};
-    int subsample_size;
-    std::vector<std::vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
-
-    double calculate_c(double m) const;
-    double pathLength(const std::vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const;
-    void buildFullFilePath(char out_path[512]);
-    double Score(double live_latency) const;
+    char domain[256];
+    char proto_port[128];
+    char headers[8192];
 
 public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample);
-
-    bool LoadModel();
-    std::vector<double> Score_List(const std::vector<double> &latency_list) const;
+    GenericInterface(char _domain[256], char _headers[8192], char _proto_port[128]);
+    GenericStruct interface_scan(char path[2048], bool *cancel_flag, int &sock, SSL *&ssl);
 };

@@ -15,28 +15,29 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+#include <vector>
+#include <cstdint>
+using namespace std;
+
 #pragma once
 
-#include "Reco_GAN_Struct.cpp"
-#include <vector>
-
-class Reco_GAN_V2_Predict
+struct Compiler_Struct
 {
-private:
-    char domain[256] = {0};
-    int subsample_size;
-    std::vector<std::vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
+    char domain[256];
+    vector<int> status_code_arr;
+    vector<uint16_t> hex_status_code_arr;
+    vector<uint16_t> common_codes_hex;
+    vector<uint16_t> fallback_trackable_codes;
+    vector<uint16_t> exotic_codes;
+};
 
-    double calculate_c(double m) const;
-    double pathLength(const std::vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const;
-    void buildFullFilePath(char out_path[512]);
-    double Score(double live_latency) const;
-
-public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample);
-
-    bool LoadModel();
-    std::vector<double> Score_List(const std::vector<double> &latency_list) const;
+// The unified storage structure for latency data metrics
+struct Latency_Compiler_Struct
+{
+    char domain[256];
+    vector<double> raw_latency_arr;
+    vector<float> normalized_latency_arr; // Scaled between 0.0f and 1.0f
+    vector<double> fast_responses;        // Under 200ms (Direct/Good Proxy)
+    vector<double> medium_responses;      // 200ms - 1000ms (Average Tor/Proxy hop)
+    vector<double> slow_or_timeout;       // Over 1000ms (Lagging or active block)
 };

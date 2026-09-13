@@ -26,9 +26,9 @@
 #include <chrono>
 #include <string>
 #include <cstring>
-#include "../Generic_Module/interface_scan_module.cpp"
-#include "../Generic_Module/SocksModule.cpp"
-#include "../Generic_Module/wires.cpp"
+#include "../Generic_Module/interface_scan_module.hpp"
+#include "../Generic_Module/SocksModule.hpp"
+#include "../Generic_Module/wires.hpp"
 
 using namespace std;
 

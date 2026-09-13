@@ -18,8 +18,8 @@
 #include <vector>
 #include <string>
 #include <cstring>
-#include "message_converter.cpp"
-#include "status_code_converter.cpp"
+#include "message_converter.hpp"
+#include "status_code_converter.hpp"
 #include <fstream>
 #include <iomanip>
 #include <cstdlib>
