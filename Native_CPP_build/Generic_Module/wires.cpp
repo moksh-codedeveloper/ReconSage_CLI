@@ -17,7 +17,7 @@
  */
 #include "wires.hpp"
 
-inline vector<uint8_t> encode_dns_name(string domain)
+vector<uint8_t> encode_dns_name(string domain)
 {
     vector<uint8_t> encoded;
     string label = "";
@@ -46,7 +46,7 @@ inline vector<uint8_t> encode_dns_name(string domain)
     return encoded;
 }
 
-inline int skip_name_field(const uint8_t *buffer, int offset, int buffer_len)
+int skip_name_field(const uint8_t *buffer, int offset, int buffer_len)
 {
     while (offset < buffer_len)
     {
@@ -69,7 +69,7 @@ inline int skip_name_field(const uint8_t *buffer, int offset, int buffer_len)
     return offset;
 }
 
-inline uint16_t generate_unique_run_id()
+uint16_t generate_unique_run_id()
 {
     auto now = chrono::high_resolution_clock::now();
     uint64_t microseconds = chrono::duration_cast<chrono::microseconds>(
@@ -87,7 +87,7 @@ inline uint16_t generate_unique_run_id()
     return execution_id;
 }
 
-inline int extract_status_from_buffer(char buff[65536])
+int extract_status_from_buffer(char buff[65536])
 {
     if (!buff || buff[0] == '\0')
         return -1;

@@ -7,142 +7,122 @@
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  */
+#include "Predict.hpp"
 
-#include "Reco_GAN_Struct.cpp"
-#include <iostream>
-#include <vector>
-#include <iomanip>
-#include <cmath>
-#include <fstream>
-#include <cstring>
-#include <cstdlib>
-using namespace std;
-
-class Reco_GAN_V2_Predict
+double Reco_GAN_V2_Predict::calculate_c(double m) const
 {
-private:
-    char domain[256] = {0};
-    int subsample_size;
-    vector<vector<iTreeNodes>> forest;
-    double c_factor_sub_sample;
-    static constexpr double EULER_MASCHERONI = 0.5772156649;
+    if (m <= 1.0)
+        return 0.0;
+    else if (m == 2.0)
+        return 1.0;
+    return 2.0 * (log(m - 1.0) + EULER_MASCHERONI) - (2.0 * (m - 1.0) / m);
+}
 
-    double calculate_c(double m) const
+double Reco_GAN_V2_Predict::pathLength(const vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const
+{
+    if (node_idx < 0 || node_idx >= static_cast<int>(trees.size()))
+        return current_depth;
+
+    const iTreeNodes &nodes = trees[node_idx];
+
+    if (nodes.is_leaf)
+        return current_depth + calculate_c(static_cast<double>(nodes.size));
+
+    if (latency_x < nodes.split_value)
+        return pathLength(trees, nodes.left_child, latency_x, current_depth + 1.0);
+    else
+        return pathLength(trees, nodes.right_child, latency_x, current_depth + 1.0);
+}
+
+void Reco_GAN_V2_Predict::buildFullFilePath(char out_path[512])
+{
+    const char *user_name = getenv("USER");
+    if (!user_name)
+        user_name = "root";
+
+    char sanitized_domain[256] = {0};
+    for (int i = 0; i < 255 && domain[i] != '\0'; ++i)
     {
-        if (m <= 1.0)
-            return 0.0;
-        else if (m == 2.0)
-            return 1.0;
-        return 2.0 * (log(m - 1.0) + EULER_MASCHERONI) - (2.0 * (m - 1.0) / m);
-    }
-
-    double pathLength(const vector<iTreeNodes> &trees, int node_idx, double latency_x, double current_depth) const
-    {
-        if (node_idx < 0 || node_idx >= static_cast<int>(trees.size()))
-            return current_depth;
-
-        const iTreeNodes &nodes = trees[node_idx];
-
-        if (nodes.is_leaf)
-            return current_depth + calculate_c(static_cast<double>(nodes.size));
-
-        if (latency_x < nodes.split_value)
-            return pathLength(trees, nodes.left_child, latency_x, current_depth + 1.0);
+        char c = domain[i];
+        if (c == '.' || c == '/' || c == ':' || c == '\\')
+            sanitized_domain[i] = '_';
         else
-            return pathLength(trees, nodes.right_child, latency_x, current_depth + 1.0);
+            sanitized_domain[i] = c;
     }
 
-    void buildFullFilePath(char out_path[512])
+    snprintf(out_path, 512, "/home/%s/Reco_GAN_Data/%s_trees_data.txt", user_name, sanitized_domain);
+}
+
+double Reco_GAN_V2_Predict::Score(double live_latency) const
+{
+    if (forest.empty())
+        return 0.0;
+
+    double total_path = 0.0;
+    for (const auto &trees : forest)
     {
-        const char *user_name = getenv("USER");
-        if (!user_name)
-            user_name = "root";
+        total_path += pathLength(trees, 0, live_latency, 0.0);
+    }
+    double mean_path = total_path / static_cast<double>(forest.size());
+    return pow(2.0, -(mean_path / c_factor_sub_sample));
+}
 
-        char sanitized_domain[256] = {0};
-        for (int i = 0; i < 255 && domain[i] != '\0'; ++i)
-        {
-            char c = domain[i];
-            if (c == '.' || c == '/' || c == ':' || c == '\\')
-                sanitized_domain[i] = '_';
-            else
-                sanitized_domain[i] = c;
-        }
+Reco_GAN_V2_Predict::Reco_GAN_V2_Predict(const char *_domain, int s_sample) : subsample_size(s_sample)
+{
+    strncpy(domain, _domain, 255);
+    domain[255] = '\0';
+    c_factor_sub_sample = calculate_c(static_cast<double>(subsample_size));
+}
 
-        snprintf(out_path, 512, "/home/%s/Reco_GAN_Data/%s_trees_data.txt", user_name, sanitized_domain);
+bool Reco_GAN_V2_Predict::LoadModel()
+{
+    forest.clear();
+    char file_path[512] = {0};
+    buildFullFilePath(file_path);
+
+    ifstream file(file_path);
+    if (!file.is_open())
+    {
+        cerr << "[ERROR] Prediction engine could not open: " << file_path << endl;
+        return false;
     }
 
-    double Score(double live_latency) const
+    string tag;
+    while (file >> tag)
     {
-        if (forest.empty())
-            return 0.0;
-
-        double total_path = 0.0;
-        for (const auto &trees : forest)
+        if (tag == "TREE_START")
         {
-            total_path += pathLength(trees, 0, live_latency, 0.0);
-        }
-        double mean_path = total_path / static_cast<double>(forest.size());
-        return pow(2.0, -(mean_path / c_factor_sub_sample));
-    }
+            size_t node_count = 0;
+            file >> node_count;
 
-public:
-    Reco_GAN_V2_Predict(const char *_domain, int s_sample) : subsample_size(s_sample)
-    {
-        strncpy(domain, _domain, 255);
-        domain[255] = '\0';
-        c_factor_sub_sample = calculate_c(static_cast<double>(subsample_size));
-    }
+            vector<iTreeNodes> tree;
+            tree.reserve(node_count);
 
-    bool LoadModel()
-    {
-        forest.clear();
-        char file_path[512] = {0};
-        buildFullFilePath(file_path);
-
-        ifstream file(file_path);
-        if (!file.is_open())
-        {
-            cerr << "[ERROR] Prediction engine could not open: " << file_path << endl;
-            return false;
-        }
-
-        string tag;
-        while (file >> tag)
-        {
-            if (tag == "TREE_START")
+            for (size_t i = 0; i < node_count; ++i)
             {
-                size_t node_count = 0;
-                file >> node_count;
-
-                vector<iTreeNodes> tree;
-                tree.reserve(node_count);
-
-                for (size_t i = 0; i < node_count; ++i)
-                {
-                    iTreeNodes node;
-                    file >> node.left_child >> node.right_child >> node.is_leaf >> node.size >> node.split_value;
-                    tree.push_back(node);
-                }
-
-                file >> tag; // Consume "TREE_END"
-                forest.push_back(tree);
+                iTreeNodes node;
+                file >> node.left_child >> node.right_child >> node.is_leaf >> node.size >> node.split_value;
+                tree.push_back(node);
             }
-        }
-        file.close();
-        return !forest.empty();
-    }
 
-    vector<double> Score_List(const vector<double> &latency_list) const
-    {
-        vector<double> scores;
-        scores.reserve(latency_list.size());
-        for (const double &latency : latency_list)
-        {
-            scores.push_back(Score(latency));
+            file >> tag; // Consume "TREE_END"
+            forest.push_back(tree);
         }
-        return scores;
     }
-};
+    file.close();
+    return !forest.empty();
+}
+
+vector<double> Reco_GAN_V2_Predict::Score_List(const vector<double> &latency_list) const
+{
+    vector<double> scores;
+    scores.reserve(latency_list.size());
+    for (const double &latency : latency_list)
+    {
+        scores.push_back(Score(latency));
+    }
+    return scores;
+}
 
 extern "C"
 {

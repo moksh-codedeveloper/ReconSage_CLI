@@ -15,181 +15,141 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#include <iostream>
-#include <vector>
-#include <cstring>
-#include <cctype>
-#include <algorithm>
-#include <fstream>
-#include <sstream>
-#include "Reco_GAN_Struct.cpp"
-using namespace std;
 
-class Soft_404_Catcher
+#include "Soft_404_Catcher.hpp"
+
+Soft_404_Catcher::Soft_404_Catcher(const char _response_body_file_path[512])
 {
-private:
-    char response_body_file_path[512] = {0};
+    strncpy(response_body_file_path, _response_body_file_path, 511);
+    response_body_file_path[511] = '\0';
+}
 
-    static inline const vector<string> SIGNATURES = {
-        "page not found",
-        "404 not found",
-        "does not exist",
-        "item unavailable",
-        "sorry, the page",
-        "content not found",
-        "no longer available",
-        "error 404",
-        "return to homepage",
-        "that page can't be found",
-        "nothing found",
-        "the page you were looking for doesn't exist",
-        "404 - file or directory not found",
-        "the requested url was not found",
-        "route not found",
-        "just a moment...",
-        "attention required!",
-        "checking your browser",
-        "enable javascript and cookies",
-        "access denied",
-        "incapsula incident id",
-        "pardon our interruption",
-        "security check",
-        "request blocked"};
-
-public:
-    Soft_404_Catcher(const char _response_body_file_path[512])
+bool Soft_404_Catcher::isItSoft404(int statusCode, const char *response_body)
+{
+    if (statusCode != 200 && statusCode != 203 && statusCode != 206)
     {
-        strncpy(response_body_file_path, _response_body_file_path, 511);
-        response_body_file_path[511] = '\0';
-    }
-
-    bool isItSoft404(int statusCode, const char *response_body)
-    {
-        if (statusCode != 200 && statusCode != 203 && statusCode != 206)
-        {
-            return false;
-        }
-
-        if (response_body == nullptr)
-            return false;
-
-        char _response_body[4097];
-
-        // SAFE COPY: Copy up to actual string length or max 4096 bytes
-        size_t input_len = strlen(response_body);
-        size_t safe_len = min(input_len, static_cast<size_t>(4096));
-
-        memcpy(_response_body, response_body, safe_len);
-        _response_body[safe_len] = '\0';
-
-        if (safe_len == 0)
-            return false;
-
-        // Lowercase in-place
-        for (size_t i = 0; i < safe_len; i++)
-        {
-            _response_body[i] = static_cast<char>(tolower(static_cast<unsigned char>(_response_body[i])));
-        }
-
-        // Substring search with early exit
-        for (const string &sig : SIGNATURES)
-        {
-            if (strstr(_response_body, sig.c_str()) != nullptr)
-            {
-                return true; // Match found!
-            }
-        }
         return false;
     }
 
-    // RETURNS ALL PARSED RECORDS IN A VECTOR
-    vector<ResponseBodyFilePath> mainResponseBodyParser()
-    {
-        vector<ResponseBodyFilePath> records;
-        ifstream res_file(response_body_file_path);
+    if (response_body == nullptr)
+        return false;
 
-        if (!res_file.is_open())
+    char _response_body[4097];
+
+    // SAFE COPY: Copy up to actual string length or max 4096 bytes
+    size_t input_len = strlen(response_body);
+    size_t safe_len = min(input_len, static_cast<size_t>(4096));
+
+    memcpy(_response_body, response_body, safe_len);
+    _response_body[safe_len] = '\0';
+
+    if (safe_len == 0)
+        return false;
+
+    // Lowercase in-place
+    for (size_t i = 0; i < safe_len; i++)
+    {
+        _response_body[i] = static_cast<char>(tolower(static_cast<unsigned char>(_response_body[i])));
+    }
+
+    // Substring search with early exit
+    for (const string &sig : SIGNATURES)
+    {
+        if (strstr(_response_body, sig.c_str()) != nullptr)
         {
-            cerr << "[ERROR C++] Could not open response body file: " << response_body_file_path << endl;
-            return records;
+            return true; // Match found!
+        }
+    }
+    return false;
+}
+
+// RETURNS ALL PARSED RECORDS IN A VECTOR
+vector<ResponseBodyFilePath> Soft_404_Catcher::mainResponseBodyParser()
+{
+    vector<ResponseBodyFilePath> records;
+    ifstream res_file(response_body_file_path);
+
+    if (!res_file.is_open())
+    {
+        cerr << "[ERROR C++] Could not open response body file: " << response_body_file_path << endl;
+        return records;
+    }
+
+    string line;
+
+    // Outer loop reads every scan block in the file until EOF
+    while (getline(res_file, line))
+    {
+        // Trim carriage return (\r) if reading Windows-formatted text on Linux
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+
+        // Skip empty spacing lines between record blocks
+        if (line.empty())
+            continue;
+
+        ResponseBodyFilePath record;
+
+        // Step 1: Read Target Domain (Line 1 of block)
+        strncpy(record.domain, line.c_str(), 3071);
+        record.domain[3071] = '\0';
+
+        // Step 2: Expect first "---" delimiter
+        if (!getline(res_file, line) || line.find("---") == string::npos)
+            continue;
+
+        // Step 3: Read Status Code Line
+        if (getline(res_file, line))
+        {
+            try
+            {
+                record.statusCode = stoi(line);
+            }
+            catch (...)
+            {
+                record.statusCode = 0;
+            }
         }
 
-        string line;
+        // Step 4: Expect second "---" delimiter
+        if (!getline(res_file, line) || line.find("---") == string::npos)
+            continue;
 
-        // Outer loop reads every scan block in the file until EOF
+        // Step 5: Accumulate multi-line response body using stringstream
+        stringstream ss;
         while (getline(res_file, line))
         {
-            // Trim carriage return (\r) if reading Windows-formatted text on Linux
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
 
-            // Skip empty spacing lines between record blocks
+            // Empty line signifies the end of this scan block
             if (line.empty())
-                continue;
+                break;
 
-            ResponseBodyFilePath record;
-
-            // Step 1: Read Target Domain (Line 1 of block)
-            strncpy(record.domain, line.c_str(), 3071);
-            record.domain[3071] = '\0';
-
-            // Step 2: Expect first "---" delimiter
-            if (!getline(res_file, line) || line.find("---") == string::npos)
-                continue;
-
-            // Step 3: Read Status Code Line
-            if (getline(res_file, line))
-            {
-                try
-                {
-                    record.statusCode = stoi(line);
-                }
-                catch (...)
-                {
-                    record.statusCode = 0;
-                }
-            }
-
-            // Step 4: Expect second "---" delimiter
-            if (!getline(res_file, line) || line.find("---") == string::npos)
-                continue;
-
-            // Step 5: Accumulate multi-line response body using stringstream
-            stringstream ss;
-            while (getline(res_file, line))
-            {
-                if (!line.empty() && line.back() == '\r')
-                    line.pop_back();
-
-                // Empty line signifies the end of this scan block
-                if (line.empty())
-                    break;
-
-                ss << line << "\n";
-                if (ss.str().length() >= 4095)
-                    break; // Cap at 4KB per body
-            }
-
-            string body_content = ss.str();
-            strncpy(record.response_body, body_content.c_str(), 4095);
-            record.response_body[4095] = '\0';
-
-            // Push parsed block to vector
-            records.push_back(record);
+            ss << line << "\n";
+            if (ss.str().length() >= 4095)
+                break; // Cap at 4KB per body
         }
 
-        res_file.close();
-        return records;
+        string body_content = ss.str();
+        strncpy(record.response_body, body_content.c_str(), 4095);
+        record.response_body[4095] = '\0';
+
+        // Push parsed block to vector
+        records.push_back(record);
     }
-    vector<bool> mainSoft404()
+
+    res_file.close();
+    return records;
+}
+vector<bool> Soft_404_Catcher::mainSoft404()
+{
+    vector<ResponseBodyFilePath> mainOutput = mainResponseBodyParser();
+    vector<bool> soft404Output;
+    for (const ResponseBodyFilePath &data : mainOutput)
     {
-        vector<ResponseBodyFilePath> mainOutput = mainResponseBodyParser();
-        vector<bool> soft404Output;
-        for (const ResponseBodyFilePath &data : mainOutput)
-        {
-            bool soft404OutputData = isItSoft404(data.statusCode, data.response_body);
-            soft404Output.push_back(soft404OutputData);
-        }
-        return soft404Output;
+        bool soft404OutputData = isItSoft404(data.statusCode, data.response_body);
+        soft404Output.push_back(soft404OutputData);
     }
-};
+    return soft404Output;
+}

@@ -24,7 +24,7 @@
 #include <cstring>
 using namespace std;
 
-inline vector<uint8_t> encode_dns_name(string domain);
-inline int skip_name_field(const uint8_t *buffer, int offset, int buffer_len);
-inline uint16_t generate_unique_run_id();
-inline int extract_status_from_buffer(char buff[65536]);
+vector<uint8_t> encode_dns_name(string domain);
+int skip_name_field(const uint8_t *buffer, int offset, int buffer_len);
+uint16_t generate_unique_run_id();
+int extract_status_from_buffer(char buff[65536]);

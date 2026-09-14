@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-#include "Reco_GAN_Struct.cpp"
+#include "Reco_GAN_Struct.hpp"
 #include <vector>
 #include <algorithm>
 #include <iomanip>

@@ -18,7 +18,7 @@
 #include <cstring>
 #include <sstream>
 #include <vector>
-#include "Reco_GAN_Struct.cpp"
+#include "Reco_GAN_Struct.hpp"
 #include <iostream>
 #include <fstream>
 #include <iomanip>

@@ -17,8 +17,14 @@
  */
 #pragma once
 
-#include "Reco_GAN_Struct.cpp"
+#include "Reco_GAN_Struct.hpp"
 #include <vector>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <fstream>
+using namespace std;
 
 class Reco_GAN_V2_Predict
 {

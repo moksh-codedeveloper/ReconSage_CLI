@@ -46,6 +46,7 @@ add_library(reconsage_native SHARED
     # 5. ML GAN Engine
     Reco_GAN/Reco_GAN_Training.cpp
     Reco_GAN/Reco_GAN_Module.cpp
+    Reco_GAN/Reco_GAN_Prediction_Module.cpp
 
     # 6. ML Latency Engine / Isolation Forest
     Reco_GAN/Reco_GAN_Adv_Trees/Training.cpp
@@ -57,9 +58,21 @@ add_library(reconsage_native SHARED
 
     # 8. Database Compiler & Filter Engine
     Compiler/compiler.cpp
+    Compiler/message_converter.cpp
+    Compiler/status_code_converter.cpp
 
     # 9. Deterministic WAF Catcher
+    Reco_GAN/Reco_GAN_Adv_Trees/Soft_404_Catcher.cpp
     Reco_GAN/Reco_GAN_Adv_Trees/Waf_Catcher.cpp
+
+    #10. General Modules
+    Generic_Module/interface_scan_module.cpp
+    Generic_Module/SocksModule.cpp
+    Generic_Module/wires.cpp
+
+    #11. ReconDNS Module for Custom DNS Stack
+    ReconDNS/DomainStack.cpp
+    ReconDNS/TorDomainStack.cpp
 )
 
 # Link OpenSSL for the sockets and crypto needs
